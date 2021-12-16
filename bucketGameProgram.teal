@@ -1,0 +1,288 @@
+#pragma version 5
+txn ApplicationID
+int 0
+==
+bnz main_l31
+txn OnCompletion
+int OptIn
+==
+bnz main_l30
+txn OnCompletion
+int CloseOut
+==
+bnz main_l27
+txn OnCompletion
+int UpdateApplication
+==
+bnz main_l26
+txn OnCompletion
+int DeleteApplication
+==
+bnz main_l23
+txn OnCompletion
+int NoOp
+==
+bnz main_l7
+err
+main_l7:
+global LatestTimestamp
+byte "CreationTime"
+app_global_get
+int 60
++
+int 200
++
+<
+bnz main_l18
+global LatestTimestamp
+byte "CreationTime"
+app_global_get
+int 60
++
+int 200
++
+>=
+bnz main_l10
+err
+main_l10:
+byte "A"
+app_global_get
+byte "B"
+app_global_get
+<
+bnz main_l17
+byte "A"
+app_global_get
+byte "B"
+app_global_get
+>
+bnz main_l16
+byte "A"
+app_global_get
+byte "B"
+app_global_get
+==
+bnz main_l14
+err
+main_l14:
+txn Sender
+byte "A"
+app_local_get
+txn Sender
+byte "B"
+app_local_get
++
+int 1000
+>
+assert
+itxn_begin
+int pay
+itxn_field TypeEnum
+txn Sender
+itxn_field Receiver
+txn Sender
+byte "A"
+app_local_get
+txn Sender
+byte "B"
+app_local_get
++
+int 1000
+-
+itxn_field Amount
+itxn_submit
+txn Sender
+byte "A"
+int 0
+app_local_put
+txn Sender
+byte "B"
+int 0
+app_local_put
+int 1
+main_l15:
+return
+main_l16:
+txn Sender
+byte "B"
+app_local_get
+int 0
+>
+assert
+itxn_begin
+int pay
+itxn_field TypeEnum
+txn Sender
+itxn_field Receiver
+txn Sender
+byte "B"
+app_local_get
+int 2
+*
+int 1000
+-
+itxn_field Amount
+itxn_submit
+txn Sender
+byte "B"
+int 0
+app_local_put
+int 1
+b main_l15
+main_l17:
+txn Sender
+byte "A"
+app_local_get
+int 0
+>
+assert
+itxn_begin
+int pay
+itxn_field TypeEnum
+txn Sender
+itxn_field Receiver
+txn Sender
+byte "A"
+app_local_get
+int 2
+*
+int 1000
+-
+itxn_field Amount
+itxn_submit
+txn Sender
+byte "A"
+int 0
+app_local_put
+int 1
+b main_l15
+main_l18:
+gtxn 0 Receiver
+global CurrentApplicationAddress
+==
+assert
+gtxn 0 TypeEnum
+int pay
+==
+assert
+txna ApplicationArgs 0
+btoi
+int 1
+==
+bnz main_l22
+txna ApplicationArgs 0
+btoi
+int 2
+==
+bnz main_l21
+err
+main_l21:
+byte "B"
+byte "B"
+app_global_get
+gtxn 0 Amount
++
+app_global_put
+txn Sender
+byte "B"
+txn Sender
+byte "B"
+app_local_get
+gtxn 0 Amount
++
+app_local_put
+int 1
+b main_l15
+main_l22:
+byte "A"
+byte "A"
+app_global_get
+gtxn 0 Amount
++
+app_global_put
+txn Sender
+byte "A"
+txn Sender
+byte "A"
+app_local_get
+gtxn 0 Amount
++
+app_local_put
+int 1
+b main_l15
+main_l23:
+global LatestTimestamp
+byte "CreationTime"
+app_global_get
+int 60
++
+int 200
++
+int 60
++
+>=
+bnz main_l25
+int 0
+return
+main_l25:
+int 1
+return
+main_l26:
+int 0
+return
+main_l27:
+global LatestTimestamp
+byte "CreationTime"
+app_global_get
+int 60
++
+int 200
++
+int 60
++
+>=
+bnz main_l29
+int 0
+return
+main_l29:
+txn Sender
+global CreatorAddress
+==
+return
+main_l30:
+txn Sender
+byte "A"
+int 0
+app_local_put
+txn Sender
+byte "B"
+int 0
+app_local_put
+int 1
+return
+main_l31:
+byte "CreationTime"
+global LatestTimestamp
+app_global_put
+byte "StartTime"
+byte "CreationTime"
+app_global_get
+int 60
++
+app_global_put
+byte "EndTime"
+byte "CreationTime"
+app_global_get
+int 60
++
+int 200
++
+app_global_put
+byte "A"
+int 0
+app_global_put
+byte "B"
+int 0
+app_global_put
+int 1
+return

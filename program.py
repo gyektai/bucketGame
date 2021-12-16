@@ -35,14 +35,14 @@ def approval_program():
         App.globalPut(Bytes("EndTime"), end_time), # int 1 is also bad here
         App.globalPut(Bytes("A"), Int(0)),
         App.globalPut(Bytes("B"), Int(0)),
-        Int(1)
+        Return(Int(1))
     )
 
     # set initial local variables to 0 for opt in
     handle_optin = Seq(
         App.localPut(sender, Bytes("A"), Int(0)),
         App.localPut(sender, Bytes("B"), Int(0)),
-        Int(1)
+        Return(Int(1))
     )
 
     # only can closeout after people have a long time to withdraw
