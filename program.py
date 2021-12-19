@@ -18,53 +18,65 @@ def approval_program():
     b_wagered = App.localGet(sender, Bytes("B"))
     
 
-    creation_time = App.globalGet(Bytes("CreationTime"))
     current_time = Global.latest_timestamp()
-    start_time = creation_time + Int(60) # num should be diff for deployment
-    end_time = start_time + Int(200) # diff num for deployment
-    closing_time = end_time + Int(60) # should be 86400 for a day after
+    start_time = App.globalGet(Bytes("StartTime"))
+    end_time = start_time + Int(1000) # diff num for deployment, endtime always measured as x seconds after start time
+    closing_time = end_time + Int(30) # should be 86400 for a day after
     in_game = current_time >= start_time and current_time < end_time
     in_payout = current_time >= end_time
-    can_closeout = current_time >= closing_time
+    owner_can_withdraw = current_time >= closing_time
 
     # initialize global variables
     # StartTime and EndTime will be used more later
     handle_creation = Seq(
-        App.globalPut(Bytes("CreationTime"), Global.latest_timestamp()),
-        App.globalPut(Bytes("StartTime"), start_time), # int 1 is bad here. need time
-        App.globalPut(Bytes("EndTime"), end_time), # int 1 is also bad here
+        App.globalPut(Bytes("StartTime"), current_time + Int(4)), # int 1 is bad here. need time
         App.globalPut(Bytes("A"), Int(0)),
         App.globalPut(Bytes("B"), Int(0)),
         Return(Int(1))
     )
 
     # set initial local variables to 0 for opt in
+    # have to change to make sure people send in enough algos to cover minimum
+    # algo requirement for the smart contract
     handle_optin = Seq(
         App.localPut(sender, Bytes("A"), Int(0)),
         App.localPut(sender, Bytes("B"), Int(0)),
         Return(Int(1))
     )
 
-    # only can closeout after people have a long time to withdraw
-    handle_closeout = If(can_closeout, Return(sender == creator), Reject())
+    # always can closeout participation
+    handle_closeout = Return(Int(1))
 
     # can't update
     handle_updateapp = Reject()
 
     # only can delete if everything's over
-    handle_deleteapp = If(can_closeout, Approve(), Reject())
+    handle_deleteapp = If(owner_can_withdraw, Approve(), Reject())
 
     # add's the bet amount to global A variable
     make_a_bet = Seq(
         App.globalPut(Bytes("A"), a_amt + bet_amt),
-        App.localPut(sender, Bytes("A"), a_wagered + bet_amt),
+        App.localPut(Int(0), Bytes("A"), a_wagered + bet_amt),
         Int(1)
     )
 
     # add's the bet amount to global B variable
     make_b_bet = Seq(
         App.globalPut(Bytes("B"), b_amt + bet_amt),
-        App.localPut(sender, Bytes("B"), b_wagered + bet_amt),
+        App.localPut(Int(0), Bytes("B"), b_wagered + bet_amt),
+        Int(1)
+    )
+
+    # approve the creator doing whatever, and send args[0] algos to creator
+    handle_total_withdrawal = Seq(
+        Assert(owner_can_withdraw),
+        InnerTxnBuilder.Begin(),
+            InnerTxnBuilder.SetFields({
+                TxnField.type_enum: TxnType.Payment,
+                TxnField.receiver: creator,
+                TxnField.amount: Btoi(args[0]),
+            }),
+        InnerTxnBuilder.Submit(),
         Int(1)
     )
 
@@ -80,7 +92,7 @@ def approval_program():
                 TxnField.amount: a_wagered * Int(2) - Int(1000), # for fee
             }),
         InnerTxnBuilder.Submit(),
-        App.localPut(sender, Bytes("A"), Int(0)),
+        App.localPut(Int(0), Bytes("A"), Int(0)),
         Int(1)
     )
     # create transaction to pay out winnings to B betters if B wins
@@ -95,7 +107,7 @@ def approval_program():
                 TxnField.amount: b_wagered * Int(2) - Int(1000), # for fee
             }),
         InnerTxnBuilder.Submit(),
-        App.localPut(sender, Bytes("B"), Int(0)),
+        App.localPut(Int(0), Bytes("B"), Int(0)),
         Int(1)
     )
 
@@ -111,8 +123,8 @@ def approval_program():
                 TxnField.amount: a_wagered + b_wagered - Int(1000), # less 1000 for fee
             }),
         InnerTxnBuilder.Submit(),
-        App.localPut(sender, Bytes("A"), Int(0)),
-        App.localPut(sender, Bytes("B"), Int(0)),
+        App.localPut(Int(0), Bytes("A"), Int(0)),
+        App.localPut(Int(0), Bytes("B"), Int(0)),
         Int(1)
     )
 
@@ -129,6 +141,7 @@ def approval_program():
 
     # decide which side won and make the payout 
     payout = Cond(
+        [sender == creator, handle_total_withdrawal],
         [a_amt < b_amt, a_payout],
         [a_amt > b_amt, b_payout],
         [a_amt == b_amt, equal_payout],
