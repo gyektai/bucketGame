@@ -33,6 +33,6 @@ if __name__ == "__main__":
     #call_local(48)
     #local_call(78, 2, 10000, 1)
 
-    # manually keep track of these for ease of testing
+    # manually keep track of application ids for ease of testing and deleting
     # ids = []
     # [local_delete(id, 0) for id in ids]

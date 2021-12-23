@@ -133,6 +133,7 @@ def approval_program():
     play = Seq(
         Assert(Gtxn[0].receiver() == contract_addr),
         Assert(Gtxn[0].type_enum() == TxnType.Payment),
+        Assert(sender != creator),
         Cond(
             [bucket_chosen == Int(1), make_a_bet],
             [bucket_chosen == Int(2), make_b_bet],
