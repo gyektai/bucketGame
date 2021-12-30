@@ -32,8 +32,8 @@ def local_create(acctNum):
     clear_result = client.compile(clear)
     clear_bytes = base64.b64decode(clear_result['result'])
 
-    g_schema = StateSchema(3,0)
-    l_schema = StateSchema(2,0)
+    g_schema = StateSchema(5,0)
+    l_schema = StateSchema(3,0)
 
     txn = ApplicationCreateTxn(
         sender=creator_addr,

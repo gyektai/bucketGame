@@ -29,7 +29,8 @@ def call_local(appID):
 
 
 if __name__ == "__main__":
-    full_run_local()
+    #full_run_local()
+    print(get_local_accounts())
     #call_local(48)
     #local_call(78, 2, 10000, 1)
 
