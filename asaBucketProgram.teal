@@ -1,0 +1,631 @@
+#pragma version 5
+txn ApplicationID
+int 0
+==
+bnz main_l58
+txn OnCompletion
+int OptIn
+==
+bnz main_l54
+txn OnCompletion
+int CloseOut
+==
+bnz main_l53
+txn OnCompletion
+int UpdateApplication
+==
+bnz main_l52
+txn OnCompletion
+int DeleteApplication
+==
+bnz main_l49
+txn OnCompletion
+int NoOp
+==
+bnz main_l7
+err
+main_l7:
+byte "Asset"
+app_global_get
+int 0
+==
+bnz main_l30
+byte "Asset"
+app_global_get
+txna Assets 0
+==
+assert
+txna ApplicationArgs 0
+btoi
+int 3
+==
+bnz main_l29
+global LatestTimestamp
+byte "StartTime"
+app_global_get
+int 1000
++
+<
+bnz main_l24
+global LatestTimestamp
+byte "StartTime"
+app_global_get
+int 1000
++
+>=
+bnz main_l12
+err
+main_l12:
+txn Sender
+global CreatorAddress
+==
+bnz main_l23
+txn Sender
+byte "EKWUQAIM5JFDQAUDLU5NV3TLYR3EQLMHXOZ6G5KBQSSNG63V6KEOBY7WDI"
+==
+bnz main_l22
+byte "A"
+app_global_get
+byte "B"
+app_global_get
+<
+bnz main_l21
+byte "A"
+app_global_get
+byte "B"
+app_global_get
+>
+bnz main_l20
+byte "A"
+app_global_get
+byte "B"
+app_global_get
+==
+bnz main_l18
+err
+main_l18:
+txn Sender
+byte "A"
+app_local_get
+txn Sender
+byte "B"
+app_local_get
++
+int 0
+>
+assert
+itxn_begin
+int axfer
+itxn_field TypeEnum
+txna Assets 0
+itxn_field XferAsset
+txn Sender
+itxn_field Receiver
+txn Sender
+byte "A"
+app_local_get
+txn Sender
+byte "B"
+app_local_get
++
+itxn_field AssetAmount
+itxn_submit
+int 0
+byte "A"
+int 0
+app_local_put
+int 0
+byte "B"
+int 0
+app_local_put
+int 1
+main_l19:
+return
+main_l20:
+txn Sender
+byte "B"
+app_local_get
+int 0
+>
+assert
+itxn_begin
+int axfer
+itxn_field TypeEnum
+txna Assets 0
+itxn_field XferAsset
+txn Sender
+itxn_field Receiver
+txn Sender
+byte "A"
+app_local_get
+int 2
+*
+itxn_field AssetAmount
+itxn_submit
+int 0
+byte "B"
+int 0
+app_local_put
+int 1
+b main_l19
+main_l21:
+txn Sender
+byte "A"
+app_local_get
+int 0
+>
+assert
+itxn_begin
+int axfer
+itxn_field TypeEnum
+txna Assets 0
+itxn_field XferAsset
+txn Sender
+itxn_field Receiver
+txn Sender
+byte "A"
+app_local_get
+int 2
+*
+itxn_field AssetAmount
+itxn_submit
+int 0
+byte "A"
+int 0
+app_local_put
+int 1
+b main_l19
+main_l22:
+byte "SponsorWithdrew"
+app_global_get
+assert
+itxn_begin
+int axfer
+itxn_field TypeEnum
+txna Assets 0
+itxn_field XferAsset
+byte "EKWUQAIM5JFDQAUDLU5NV3TLYR3EQLMHXOZ6G5KBQSSNG63V6KEOBY7WDI"
+itxn_field Receiver
+txna Accounts 0
+txna Assets 0
+asset_holding_get AssetBalance
+store 0
+store 1
+load 1
+itxn_field AssetAmount
+itxn_submit
+int 1
+b main_l19
+main_l23:
+global LatestTimestamp
+byte "StartTime"
+app_global_get
+int 1000
++
+int 30
++
+>=
+assert
+byte "SponsorWithdrew"
+app_global_get
+int 0
+==
+assert
+itxn_begin
+int axfer
+itxn_field TypeEnum
+txna Assets 0
+itxn_field XferAsset
+global CreatorAddress
+itxn_field Receiver
+txna Accounts 0
+txna Assets 0
+asset_holding_get AssetBalance
+store 0
+store 1
+load 1
+int 5
+/
+int 4
+*
+itxn_field AssetAmount
+itxn_submit
+byte "SponsorWithdrew"
+int 1
+app_global_put
+int 1
+b main_l19
+main_l24:
+gtxn 0 AssetReceiver
+global CurrentApplicationAddress
+==
+assert
+gtxn 0 TypeEnum
+int axfer
+==
+assert
+gtxn 0 XferAsset
+txna Assets 0
+==
+assert
+txn Sender
+global CreatorAddress
+!=
+assert
+txna ApplicationArgs 0
+btoi
+int 1
+==
+bnz main_l28
+txna ApplicationArgs 0
+btoi
+int 2
+==
+bnz main_l27
+err
+main_l27:
+byte "B"
+byte "B"
+app_global_get
+gtxn 0 AssetAmount
++
+app_global_put
+int 0
+byte "B"
+txn Sender
+byte "B"
+app_local_get
+gtxn 0 AssetAmount
++
+app_local_put
+int 1
+b main_l19
+main_l28:
+byte "A"
+byte "A"
+app_global_get
+gtxn 0 AssetAmount
++
+app_global_put
+int 0
+byte "A"
+txn Sender
+byte "A"
+app_local_get
+gtxn 0 AssetAmount
++
+app_local_put
+int 1
+b main_l19
+main_l29:
+itxn_begin
+int axfer
+itxn_field TypeEnum
+byte "Asset"
+app_global_get
+itxn_field XferAsset
+global CurrentApplicationAddress
+itxn_field Receiver
+int 0
+itxn_field AssetAmount
+itxn_submit
+int 1
+b main_l19
+main_l30:
+global LatestTimestamp
+byte "StartTime"
+app_global_get
+int 1000
++
+<
+bnz main_l44
+global LatestTimestamp
+byte "StartTime"
+app_global_get
+int 1000
++
+>=
+bnz main_l33
+err
+main_l33:
+txn Sender
+global CreatorAddress
+==
+bnz main_l43
+txn Sender
+byte "EKWUQAIM5JFDQAUDLU5NV3TLYR3EQLMHXOZ6G5KBQSSNG63V6KEOBY7WDI"
+==
+bnz main_l42
+byte "A"
+app_global_get
+byte "B"
+app_global_get
+<
+bnz main_l41
+byte "A"
+app_global_get
+byte "B"
+app_global_get
+>
+bnz main_l40
+byte "A"
+app_global_get
+byte "B"
+app_global_get
+==
+bnz main_l39
+err
+main_l39:
+txn Sender
+byte "A"
+app_local_get
+txn Sender
+byte "B"
+app_local_get
++
+int 1000
+>
+assert
+itxn_begin
+int pay
+itxn_field TypeEnum
+txn Sender
+itxn_field Receiver
+txn Sender
+byte "A"
+app_local_get
+txn Sender
+byte "B"
+app_local_get
++
+int 1000
+-
+itxn_field Amount
+itxn_submit
+int 0
+byte "A"
+int 0
+app_local_put
+int 0
+byte "B"
+int 0
+app_local_put
+int 1
+b main_l19
+main_l40:
+txn Sender
+byte "B"
+app_local_get
+int 0
+>
+assert
+itxn_begin
+int pay
+itxn_field TypeEnum
+txn Sender
+itxn_field Receiver
+txn Sender
+byte "B"
+app_local_get
+int 2
+*
+int 1000
+-
+itxn_field Amount
+itxn_submit
+int 0
+byte "B"
+int 0
+app_local_put
+int 1
+b main_l19
+main_l41:
+txn Sender
+byte "A"
+app_local_get
+int 0
+>
+assert
+itxn_begin
+int pay
+itxn_field TypeEnum
+txn Sender
+itxn_field Receiver
+txn Sender
+byte "A"
+app_local_get
+int 2
+*
+int 1000
+-
+itxn_field Amount
+itxn_submit
+int 0
+byte "A"
+int 0
+app_local_put
+int 1
+b main_l19
+main_l42:
+byte "SponsorWithdrew"
+app_global_get
+assert
+itxn_begin
+int pay
+itxn_field TypeEnum
+byte "EKWUQAIM5JFDQAUDLU5NV3TLYR3EQLMHXOZ6G5KBQSSNG63V6KEOBY7WDI"
+itxn_field Receiver
+global CurrentApplicationAddress
+balance
+global CurrentApplicationAddress
+min_balance
+-
+itxn_field Amount
+itxn_submit
+int 1
+b main_l19
+main_l43:
+global LatestTimestamp
+byte "StartTime"
+app_global_get
+int 1000
++
+int 30
++
+>=
+assert
+byte "SponsorWithdrew"
+app_global_get
+int 0
+==
+assert
+itxn_begin
+int pay
+itxn_field TypeEnum
+global CreatorAddress
+itxn_field Receiver
+global CurrentApplicationAddress
+balance
+global CurrentApplicationAddress
+min_balance
+-
+int 5
+/
+int 4
+*
+itxn_field Amount
+itxn_submit
+byte "SponsorWithdrew"
+int 1
+app_global_put
+int 1
+b main_l19
+main_l44:
+gtxn 0 Receiver
+global CurrentApplicationAddress
+==
+assert
+gtxn 0 TypeEnum
+int pay
+==
+assert
+txn Sender
+global CreatorAddress
+!=
+assert
+txna ApplicationArgs 0
+btoi
+int 1
+==
+bnz main_l48
+txna ApplicationArgs 0
+btoi
+int 2
+==
+bnz main_l47
+err
+main_l47:
+byte "B"
+byte "B"
+app_global_get
+gtxn 0 Amount
++
+app_global_put
+int 0
+byte "B"
+txn Sender
+byte "B"
+app_local_get
+gtxn 0 Amount
++
+app_local_put
+int 1
+b main_l19
+main_l48:
+byte "A"
+byte "A"
+app_global_get
+gtxn 0 Amount
++
+app_global_put
+int 0
+byte "A"
+txn Sender
+byte "A"
+app_local_get
+gtxn 0 Amount
++
+app_local_put
+int 1
+b main_l19
+main_l49:
+global LatestTimestamp
+byte "StartTime"
+app_global_get
+int 1000
++
+int 30
++
+int 1000
++
+>=
+txn Sender
+byte "EKWUQAIM5JFDQAUDLU5NV3TLYR3EQLMHXOZ6G5KBQSSNG63V6KEOBY7WDI"
+==
+&&
+bnz main_l51
+int 0
+return
+main_l51:
+int 1
+return
+main_l52:
+int 0
+return
+main_l53:
+int 1
+return
+main_l54:
+int 0
+byte "A"
+int 0
+app_local_put
+int 0
+byte "B"
+int 0
+app_local_put
+txn Sender
+global CreatorAddress
+==
+bnz main_l57
+int 0
+byte "IsSponsor"
+int 0
+app_local_put
+main_l56:
+int 1
+return
+main_l57:
+int 0
+byte "IsSponsor"
+int 1
+app_local_put
+b main_l56
+main_l58:
+byte "StartTime"
+global LatestTimestamp
+app_global_put
+byte "A"
+int 0
+app_global_put
+byte "B"
+int 0
+app_global_put
+byte "Asset"
+txna Assets 0
+app_global_put
+byte "SponsorWithdrew"
+int 0
+app_global_put
+int 1
+return
