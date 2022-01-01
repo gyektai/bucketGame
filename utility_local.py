@@ -172,7 +172,7 @@ class LocalRunnerAsa:
         clear_result = self.client.compile(clear)
         clear_bytes = base64.b64decode(clear_result['result'])
 
-        g_schema = StateSchema(5,0)
+        g_schema = StateSchema(4,0)
         l_schema = StateSchema(3,0)
 
         txn = ApplicationCreateTxn(
@@ -212,7 +212,7 @@ class LocalRunnerAsa:
             sender=sender1,
             receiver=app_addr,
             sp=self.client.suggested_params(),
-            amt=100000,
+            amt=1500000, #might be way too much
         )
         stxn = fund_sc.sign(sender1_pk)
         tx_id = self.client.send_transaction(stxn)
@@ -298,7 +298,7 @@ class LocalRunnerAsa:
         )
         stxn = delete_txn.sign(pk)
         tx_id = self.client.send_transaction(stxn)
-        waitForTransaction(client, tx_id)
+        waitForTransaction(self.client, tx_id)
         print("Deleted {}".format(appID))
 
     def local_create_asa(self, acctNum):
@@ -369,21 +369,32 @@ class LocalRunnerAsa:
         print("Funded")
 
     def local_sc_optin(self, appID):
-        caller, pk = get_accounts()[0]
-        print("before claim {}".format(self.client.account_info(caller)))
+        caller, pk = get_accounts()[1]
         claim_call = ApplicationCallTxn(
             sender=caller,
             index=appID,
             foreign_assets=[self.assetID],
             on_complete=future.transaction.OnComplete.NoOpOC,
             sp=self.client.suggested_params(),
-            app_args=[3]
+            app_args=[17],
         )
         stxn = claim_call.sign(pk)
         tx_id = self.client.send_transaction(stxn)
         waitForTransaction(self.client, tx_id)
-        print("after claim {}".format(self.client.account_info(caller)))
 
+    # eh this is probably useless. Will remake later to be useful
+    # might not be as garbage as that asset creation and transfer
+    def local_hard_clear(self, appID, acctNum):
+        caller, pk = get_accounts()[acctNum]
+        clear_call = ApplicationClearStateTxn(
+            sender=caller,
+            index=appID,
+            sp=self.client.suggested_params(),
+        )
+        stxn = clear_call.sign(pk)
+        tx_id = self.client.send_transaction(stxn)
+        waitForTransaction(self.client, tx_id)
+        print("deleted {}".format(appID))
 
 
 

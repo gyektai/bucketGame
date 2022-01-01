@@ -18,11 +18,11 @@ def approval_program():
     b_amt = App.globalGet(Bytes("B"))
     algo_bet_amt = Gtxn[0].amount()
     asa_bet_amt = Gtxn[0].asset_amount()
-    sponsor_withdrew = App.globalGet(Bytes("SponsorWithdrew"))
+    is_sponsor = App.localGet(Int(0), Bytes("IsSponsor"))
 
 
-    a_wagered = App.localGet(sender, Bytes("A"))
-    b_wagered = App.localGet(sender, Bytes("B"))
+    a_wagered = App.localGet(Int(0), Bytes("A"))
+    b_wagered = App.localGet(Int(0), Bytes("B"))
     
 
     current_time = Global.latest_timestamp()
@@ -32,6 +32,7 @@ def approval_program():
     in_game = current_time >= start_time and current_time < end_time
     in_payout = current_time >= end_time
     sponsor_can_withdraw = current_time >= closing_time
+    can_withdraw = current_time >= closing_time + Int(100)
     can_delete = current_time >= closing_time + Int(1000)
 
 
@@ -42,7 +43,6 @@ def approval_program():
         App.globalPut(Bytes("A"), Int(0)),
         App.globalPut(Bytes("B"), Int(0)),
         App.globalPut(Bytes("Asset"), asset_in_array),
-        App.globalPut(Bytes("SponsorWithdrew"), Int(0)),
         Return(Int(1))
     )
 
@@ -65,7 +65,7 @@ def approval_program():
     handle_updateapp = Reject()
 
     # only can delete if everything's over
-    handle_deleteapp = If(And(can_delete, sender == Bytes(my_addr)), Approve(), Reject())
+    handle_deleteapp = If(can_delete, Approve(), Reject())
 
     # add's the bet amount to global A variable
     algo_make_a_bet = Seq(
@@ -98,7 +98,7 @@ def approval_program():
     # approve the creator doing whatever, and send args[0] algos to creator
     algo_handle_sponsor_withdrawal = Seq(
         Assert(sponsor_can_withdraw),
-        Assert(sponsor_withdrew == Int(0)),
+        Assert(is_sponsor),
         InnerTxnBuilder.Begin(),
             InnerTxnBuilder.SetFields({
                 TxnField.type_enum: TxnType.Payment,
@@ -106,12 +106,12 @@ def approval_program():
                 TxnField.amount: (Balance(contract_addr) - MinBalance(contract_addr)) / Int(5) * Int(4),
             }),
         InnerTxnBuilder.Submit(),
-        App.globalPut(Bytes("SponsorWithdrew"), Int(1)),
+        App.localPut(Int(0), Bytes("IsSponsor"), Int(0)),
         Int(1)
     )
 
     algo_handle_my_withdrawal = Seq(
-        Assert(sponsor_withdrew),
+        Assert(can_withdraw),
         InnerTxnBuilder.Begin(),
             InnerTxnBuilder.SetFields({
                 TxnField.type_enum: TxnType.Payment,
@@ -130,7 +130,7 @@ def approval_program():
     # approve the creator doing whatever, and send args[0] algos to creator
     asa_handle_sponsor_withdrawal = Seq(
         Assert(sponsor_can_withdraw),
-        Assert(sponsor_withdrew == Int(0)),
+        Assert(is_sponsor),
         InnerTxnBuilder.Begin(),
             InnerTxnBuilder.SetFields({
                 TxnField.type_enum: TxnType.AssetTransfer,
@@ -139,12 +139,12 @@ def approval_program():
                 TxnField.asset_amount: contractAssetValue / Int(5) * Int(4),
             }),
         InnerTxnBuilder.Submit(),
-        App.globalPut(Bytes("SponsorWithdrew"), Int(1)),
+        App.localPut(Int(0), Bytes("IsSponsor"), Int(0)),
         Int(1)
     )
 
     asa_handle_my_withdrawal = Seq(
-        Assert(sponsor_withdrew),
+        Assert(can_withdraw),
         InnerTxnBuilder.Begin(),
             InnerTxnBuilder.SetFields({
                 TxnField.type_enum: TxnType.AssetTransfer,
@@ -285,17 +285,18 @@ def approval_program():
         [a_amt > b_amt, asa_b_payout],
         [a_amt == b_amt, asa_equal_payout],
     )
-    # handle_asa_optin = Seq(
-    #     InnerTxnBuilder.Begin(),
-    #         InnerTxnBuilder.SetFields({
-    #             TxnField.type_enum: TxnType.AssetTransfer,
-    #             TxnField.xfer_asset: asset_in_play,
-    #             TxnField.receiver: contract_addr,
-    #             TxnField.asset_amount: Int(0), # no fee for assets
-    #         }),
-    #     InnerTxnBuilder.Submit(),
-    #     Int(1)
-    # )
+    handle_asa_optin = Seq(
+        InnerTxnBuilder.Begin(),
+            InnerTxnBuilder.SetFields({
+                TxnField.sender: contract_addr,
+                TxnField.type_enum: TxnType.AssetTransfer,
+                TxnField.xfer_asset: asset_in_array,
+                TxnField.receiver: contract_addr,
+                TxnField.asset_amount: Int(0),
+            }),
+        InnerTxnBuilder.Submit(),
+        Int(1)
+    )
     # make sure first transaction was payment to the contract account
     # set the bet to the side in the args array
     asa_play = Seq(
@@ -319,7 +320,7 @@ def approval_program():
     asa_noop = Seq(
         Assert(asset_in_play == asset_in_array),
         Cond(
-            #[bucket_chosen == Int(3), handle_asa_optin], if sc needs to opt in
+            [And(bucket_chosen == Int(17), sender == creator), handle_asa_optin],
             [in_game, asa_play],
             [in_payout, asa_payout]
         ))
