@@ -18,7 +18,6 @@ def approval_program():
     b_amt = App.globalGet(Bytes("B"))
     algo_bet_amt = Gtxn[0].amount()
     asa_bet_amt = Gtxn[0].asset_amount()
-    is_sponsor = App.localGet(Int(0), Bytes("IsSponsor"))
 
 
     a_wagered = App.localGet(Int(0), Bytes("A"))
@@ -28,33 +27,27 @@ def approval_program():
     current_time = Global.latest_timestamp()
     start_time = App.globalGet(Bytes("StartTime"))
     end_time = start_time + Int(1000) # diff num for deployment, endtime always measured as x seconds after start time
-    closing_time = end_time + Int(30) # should be 86400 for a day after
+    closing_time = end_time + Int(100) # should be 86400 for a day after
+
     in_game = current_time >= start_time and current_time < end_time
     in_payout = current_time >= end_time
-    sponsor_can_withdraw = current_time >= closing_time
     can_withdraw = current_time >= closing_time + Int(100)
     can_delete = current_time >= closing_time + Int(1000)
 
 
     # initialize global variables
-    # StartTime and EndTime will be used more later
     handle_creation = Seq(
-        App.globalPut(Bytes("StartTime"), current_time), # game starts immediately now. Why not?
+        App.globalPut(Bytes("StartTime"), current_time), # game starts immediately on creation
         App.globalPut(Bytes("A"), Int(0)),
         App.globalPut(Bytes("B"), Int(0)),
         App.globalPut(Bytes("Asset"), asset_in_array),
         Return(Int(1))
     )
 
-    def isSponsorOptIn(s):
-        return App.localPut(Int(0), Bytes("IsSponsor"), Int(s))
     # set initial local variables to 0 for opt in
-    # have to change to make sure people send in enough algos to cover minimum
-    # algo requirement for the smart contract
     handle_optin = Seq(
         App.localPut(Int(0), Bytes("A"), Int(0)),
         App.localPut(Int(0), Bytes("B"), Int(0)),
-        If(sender == creator, isSponsorOptIn(1), isSponsorOptIn(0)),
         Return(Int(1))
     )
 
@@ -67,38 +60,28 @@ def approval_program():
     # only can delete if everything's over
     handle_deleteapp = If(can_delete, Approve(), Reject())
 
-    # add's the bet amount to global A variable
-    algo_make_a_bet = Seq(
-        App.globalPut(Bytes("A"), a_amt + algo_bet_amt),
-        App.localPut(Int(0), Bytes("A"), a_wagered + algo_bet_amt),
-        Int(1)
+    def getSideBytes(side): return If(side == Int(1), Bytes("A"), Bytes("B"))
+    def getGlobalWagered(side): return If(side == Int(1), a_amt, b_amt)
+    def getLocalWagered(side): return If(side == Int(1), a_wagered, b_wagered)
+
+    # add's the bet amount to the proper side globally and locally
+    def algo_make_bet(side):
+        return Seq(
+            App.globalPut(getSideBytes(side), getGlobalWagered(side) + algo_bet_amt),
+            App.localPut(Int(0), getSideBytes(side), getLocalWagered(side) + algo_bet_amt),
+            Int(1)
     )
 
-    # add's the bet amount to global B variable
-    algo_make_b_bet = Seq(
-        App.globalPut(Bytes("B"), b_amt + algo_bet_amt),
-        App.localPut(Int(0), Bytes("B"), b_wagered + algo_bet_amt),
-        Int(1)
+    def asa_make_bet(side):
+        return Seq(
+            App.globalPut(getSideBytes(side), getGlobalWagered(side) + asa_bet_amt),
+            App.localPut(Int(0), getSideBytes(side), getLocalWagered(side) + asa_bet_amt),
+            Int(1)
     )
 
-    # add's the bet amount to global A variable
-    asa_make_a_bet = Seq(
-        App.globalPut(Bytes("A"), a_amt + asa_bet_amt),
-        App.localPut(Int(0), Bytes("A"), a_wagered + asa_bet_amt),
-        Int(1)
-    )
-
-    # add's the bet amount to global B variable
-    asa_make_b_bet = Seq(
-        App.globalPut(Bytes("B"), b_amt + asa_bet_amt),
-        App.localPut(Int(0), Bytes("B"), b_wagered + asa_bet_amt),
-        Int(1)
-    )
-
-    # approve the creator doing whatever, and send args[0] algos to creator
-    algo_handle_sponsor_withdrawal = Seq(
-        Assert(sponsor_can_withdraw),
-        Assert(is_sponsor),
+    # payout what remains in the contract to sponsor 80% and me rest
+    algo_handle_withdrawal = Seq(
+        Assert(can_withdraw),
         InnerTxnBuilder.Begin(),
             InnerTxnBuilder.SetFields({
                 TxnField.type_enum: TxnType.Payment,
@@ -106,17 +89,11 @@ def approval_program():
                 TxnField.amount: (Balance(contract_addr) - MinBalance(contract_addr)) / Int(5) * Int(4),
             }),
         InnerTxnBuilder.Submit(),
-        App.localPut(Int(0), Bytes("IsSponsor"), Int(0)),
-        Int(1)
-    )
-
-    algo_handle_my_withdrawal = Seq(
-        Assert(can_withdraw),
         InnerTxnBuilder.Begin(),
             InnerTxnBuilder.SetFields({
                 TxnField.type_enum: TxnType.Payment,
                 TxnField.receiver: Bytes(my_addr),
-                TxnField.amount: Balance(contract_addr) - MinBalance(contract_addr),
+                TxnField.amount: Balance(contract_addr) - MinBalance(contract_addr), # might need to reload balance to not overspend
             }),
         InnerTxnBuilder.Submit(),
         Int(1)
@@ -127,10 +104,9 @@ def approval_program():
         contractAssetBalance,
         contractAssetBalance.value()
     )
-    # approve the creator doing whatever, and send args[0] algos to creator
-    asa_handle_sponsor_withdrawal = Seq(
-        Assert(sponsor_can_withdraw),
-        Assert(is_sponsor),
+    # payout what remains in the contract 80% to sponsor rest to me
+    asa_handle_withdrawal = Seq(
+        Assert(can_withdraw),
         InnerTxnBuilder.Begin(),
             InnerTxnBuilder.SetFields({
                 TxnField.type_enum: TxnType.AssetTransfer,
@@ -139,53 +115,30 @@ def approval_program():
                 TxnField.asset_amount: contractAssetValue / Int(5) * Int(4),
             }),
         InnerTxnBuilder.Submit(),
-        App.localPut(Int(0), Bytes("IsSponsor"), Int(0)),
-        Int(1)
-    )
-
-    asa_handle_my_withdrawal = Seq(
-        Assert(can_withdraw),
         InnerTxnBuilder.Begin(),
             InnerTxnBuilder.SetFields({
                 TxnField.type_enum: TxnType.AssetTransfer,
                 TxnField.xfer_asset: asset_in_array,
                 TxnField.receiver: Bytes(my_addr),
-                TxnField.asset_amount: contractAssetValue,
+                TxnField.asset_amount: contractAssetValue, # might need to reload this
             }),
         InnerTxnBuilder.Submit(),
         Int(1)
     )
 
-    # create transaction to pay out winnings to A betters if A wins
-    # set local state to 0 for no double payouts
-    # transactions fees not dealt with properly
-    algo_a_payout = Seq(
-        Assert(a_wagered > Int(0)),
-        InnerTxnBuilder.Begin(),
-            InnerTxnBuilder.SetFields({
-                TxnField.type_enum: TxnType.Payment,
-                TxnField.receiver: sender,
-                TxnField.amount: a_wagered * Int(2) - Int(1000), # for fee
-            }),
-        InnerTxnBuilder.Submit(),
-        App.localPut(Int(0), Bytes("A"), Int(0)),
-        Int(1)
-    )
-    # create transaction to pay out winnings to B betters if B wins
-    # set local state to 0 for no double payouts
-    # transactions fees not dealt with properly
-    algo_b_payout = Seq(
-        Assert(b_wagered > Int(0)),
-        InnerTxnBuilder.Begin(),
-            InnerTxnBuilder.SetFields({
-                TxnField.type_enum: TxnType.Payment,
-                TxnField.receiver: sender,
-                TxnField.amount: b_wagered * Int(2) - Int(1000), # for fee
-            }),
-        InnerTxnBuilder.Submit(),
-        App.localPut(Int(0), Bytes("B"), Int(0)),
-        Int(1)
-    )
+    def algo_payout(side):
+        return Seq(
+            Assert(getLocalWagered(side) > Int(0)),
+            InnerTxnBuilder.Begin(),
+                InnerTxnBuilder.SetFields({
+                    TxnField.type_enum: TxnType.Payment,
+                    TxnField.receiver: sender,
+                    TxnField.amount: getLocalWagered(side) * Int(2) - Int(1000), # for fee
+                }),
+            InnerTxnBuilder.Submit(),
+            App.localPut(Int(0), getSideBytes(side), Int(0)),
+            Int(1)
+        )
 
     # returns funds if there is a tie
     # sets both local states to 0 for no double payouts
@@ -207,35 +160,20 @@ def approval_program():
     # create transaction to pay out winnings to A betters if A wins
     # set local state to 0 for no double payouts
     # transactions fees not dealt with properly
-    asa_a_payout = Seq(
-        Assert(a_wagered > Int(0)),
-        InnerTxnBuilder.Begin(),
-            InnerTxnBuilder.SetFields({
-                TxnField.type_enum: TxnType.AssetTransfer,
-                TxnField.xfer_asset: asset_in_array,
-                TxnField.receiver: sender,
-                TxnField.asset_amount: a_wagered * Int(2), # no fee for assets
-            }),
-        InnerTxnBuilder.Submit(),
-        App.localPut(Int(0), Bytes("A"), Int(0)),
-        Int(1)
-    )
-    # create transaction to pay out winnings to B betters if B wins
-    # set local state to 0 for no double payouts
-    # transactions fees not dealt with properly
-    asa_b_payout = Seq(
-        Assert(b_wagered > Int(0)),
-        InnerTxnBuilder.Begin(),
-            InnerTxnBuilder.SetFields({
-                TxnField.type_enum: TxnType.AssetTransfer,
-                TxnField.xfer_asset: asset_in_array,
-                TxnField.receiver: sender,
-                TxnField.asset_amount: a_wagered * Int(2), # no fee for assets
-            }),
-        InnerTxnBuilder.Submit(),
-        App.localPut(Int(0), Bytes("B"), Int(0)),
-        Int(1)
-    )
+    def asa_payout(side):
+        return Seq(
+            Assert(getLocalWagered(side) > Int(0)),
+            InnerTxnBuilder.Begin(),
+                InnerTxnBuilder.SetFields({
+                    TxnField.type_enum: TxnType.AssetTransfer,
+                    TxnField.xfer_asset: asset_in_array,
+                    TxnField.receiver: sender,
+                    TxnField.asset_amount: getLocalWagered(side) * Int(2), # no fee for assets
+                }),
+            InnerTxnBuilder.Submit(),
+            App.localPut(Int(0), getSideBytes(side), Int(0)),
+            Int(1)
+        )
 
     # returns funds if there is a tie
     # sets both local states to 0 for no double payouts
@@ -261,38 +199,31 @@ def approval_program():
     algo_play = Seq(
         Assert(Gtxn[0].receiver() == contract_addr),
         Assert(Gtxn[0].type_enum() == TxnType.Payment),
-        Assert(sender != creator),
-        Cond(
-            [bucket_chosen == Int(1), algo_make_a_bet],
-            [bucket_chosen == Int(2), algo_make_b_bet],
-        )
+        algo_make_bet(bucket_chosen)
     )
 
     # decide which side won and make the payout 
     algo_payout = Cond(
-        [sender == creator, algo_handle_sponsor_withdrawal],
-        [sender == Bytes(my_addr), algo_handle_my_withdrawal],
-        [a_amt < b_amt, algo_a_payout],
-        [a_amt > b_amt, algo_b_payout],
+        [can_withdraw, algo_handle_withdrawal],
+        [a_amt < b_amt, algo_payout(Int(1))],
+        [a_amt > b_amt, algo_payout(Int(2))],
         [a_amt == b_amt, algo_equal_payout],
     )
 
     # decide which side won and make the payout 
     asa_payout = Cond(
-        [sender == creator, asa_handle_sponsor_withdrawal],
-        [sender == Bytes(my_addr), asa_handle_my_withdrawal],
-        [a_amt < b_amt, asa_a_payout],
-        [a_amt > b_amt, asa_b_payout],
+        [can_withdraw, asa_handle_withdrawal],
+        [a_amt < b_amt, asa_payout(Int(1))],
+        [a_amt > b_amt, asa_payout(Int(2))],
         [a_amt == b_amt, asa_equal_payout],
     )
+
     handle_asa_optin = Seq(
         InnerTxnBuilder.Begin(),
             InnerTxnBuilder.SetFields({
-                TxnField.sender: contract_addr,
                 TxnField.type_enum: TxnType.AssetTransfer,
                 TxnField.xfer_asset: asset_in_array,
-                TxnField.receiver: contract_addr,
-                TxnField.asset_amount: Int(0),
+                TxnField.asset_receiver: contract_addr,
             }),
         InnerTxnBuilder.Submit(),
         Int(1)
@@ -304,10 +235,7 @@ def approval_program():
         Assert(Gtxn[0].type_enum() == TxnType.AssetTransfer),
         Assert(Gtxn[0].xfer_asset() == asset_in_array),
         Assert(sender != creator),
-        Cond(
-            [bucket_chosen == Int(1), asa_make_a_bet],
-            [bucket_chosen == Int(2), asa_make_b_bet],
-        )
+        asa_make_bet(bucket_chosen)
     )
     
     # for application calls, if betting is taking place, then in game
@@ -325,12 +253,8 @@ def approval_program():
             [in_payout, asa_payout]
         ))
 
-
     handle_noop = If(asset_in_play == Int(0), algo_noop, asa_noop)
     
-
-
-
     program = Cond(
         [Txn.application_id() == Int(0), handle_creation],
         [Txn.on_completion() == OnComplete.OptIn, handle_optin],

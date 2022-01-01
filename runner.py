@@ -14,6 +14,7 @@ def full_run_local(runner):
     print("opting ...")
     runner.local_sc_optin(appID)
     runner.local_optin(appID, 0)
+    runner.local_optin(appID, 1)
     runner.local_optin(appID, 2)
     runner.local_call(appID, 1, 0, 3)
     print("calling 1 ...")
@@ -44,5 +45,5 @@ if __name__ == "__main__":
 
 
     # manually keep track of application ids for ease of testing and deleting
-    #ids = [153, 155, 157] # maybe can't delete? sender != my_addr over there?
-    #[runner.local_hard_clear(id, 1) for id in ids]
+    #ids = [194, 196] # maybe can't delete? sender != my_addr over there?
+    #[runner.local_delete(id, 1) for id in ids]
