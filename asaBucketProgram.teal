@@ -2,23 +2,23 @@
 txn ApplicationID
 int 0
 ==
-bnz main_l99
+bnz main_l107
 txn OnCompletion
 int OptIn
 ==
-bnz main_l98
+bnz main_l106
 txn OnCompletion
 int CloseOut
 ==
-bnz main_l97
+bnz main_l54
 txn OnCompletion
 int UpdateApplication
 ==
-bnz main_l96
+bnz main_l53
 txn OnCompletion
 int DeleteApplication
 ==
-bnz main_l93
+bnz main_l49
 txn OnCompletion
 int NoOp
 ==
@@ -29,11 +29,18 @@ byte "Asset"
 app_global_get
 int 0
 ==
-bnz main_l52
+bnz main_l30
 byte "Asset"
 app_global_get
 txna Assets 0
 ==
+assert
+global LatestTimestamp
+byte "StartTime"
+app_global_get
+int 1000
++
+<
 assert
 global CurrentApplicationAddress
 byte "Asset"
@@ -58,192 +65,6 @@ int 1
 main_l10:
 return
 main_l11:
-global LatestTimestamp
-byte "StartTime"
-app_global_get
-int 1000
-+
-<
-bnz main_l39
-global LatestTimestamp
-byte "StartTime"
-app_global_get
-int 1000
-+
->=
-bnz main_l14
-err
-main_l14:
-byte "A"
-app_global_get
-byte "B"
-app_global_get
-<
-bnz main_l29
-byte "A"
-app_global_get
-byte "B"
-app_global_get
->
-bnz main_l19
-byte "A"
-app_global_get
-byte "B"
-app_global_get
-==
-bnz main_l18
-err
-main_l18:
-int 0
-byte "A"
-app_local_get
-int 0
-byte "B"
-app_local_get
-+
-int 0
->
-assert
-itxn_begin
-int axfer
-itxn_field TypeEnum
-byte "Asset"
-app_global_get
-itxn_field XferAsset
-txn Sender
-itxn_field AssetReceiver
-int 0
-byte "A"
-app_local_get
-int 0
-byte "B"
-app_local_get
-+
-itxn_field AssetAmount
-itxn_submit
-int 0
-byte "A"
-int 0
-app_local_put
-int 0
-byte "B"
-int 0
-app_local_put
-int 1
-b main_l10
-main_l19:
-int 2
-int 1
-==
-bnz main_l28
-int 0
-byte "B"
-app_local_get
-main_l21:
-int 0
->
-assert
-itxn_begin
-int axfer
-itxn_field TypeEnum
-byte "Asset"
-app_global_get
-itxn_field XferAsset
-txn Sender
-itxn_field AssetReceiver
-int 2
-int 1
-==
-bnz main_l27
-int 0
-byte "B"
-app_local_get
-main_l23:
-int 2
-*
-itxn_field AssetAmount
-itxn_submit
-int 0
-int 2
-int 1
-==
-bnz main_l26
-byte "B"
-main_l25:
-int 0
-app_local_put
-int 1
-b main_l10
-main_l26:
-byte "A"
-b main_l25
-main_l27:
-int 0
-byte "A"
-app_local_get
-b main_l23
-main_l28:
-int 0
-byte "A"
-app_local_get
-b main_l21
-main_l29:
-int 1
-int 1
-==
-bnz main_l38
-int 0
-byte "B"
-app_local_get
-main_l31:
-int 0
->
-assert
-itxn_begin
-int axfer
-itxn_field TypeEnum
-byte "Asset"
-app_global_get
-itxn_field XferAsset
-txn Sender
-itxn_field AssetReceiver
-int 1
-int 1
-==
-bnz main_l37
-int 0
-byte "B"
-app_local_get
-main_l33:
-int 2
-*
-itxn_field AssetAmount
-itxn_submit
-int 0
-int 1
-int 1
-==
-bnz main_l36
-byte "B"
-main_l35:
-int 0
-app_local_put
-int 1
-b main_l10
-main_l36:
-byte "A"
-b main_l35
-main_l37:
-int 0
-byte "A"
-app_local_get
-b main_l33
-main_l38:
-int 0
-byte "A"
-app_local_get
-b main_l31
-main_l39:
 gtxn 0 AssetReceiver
 global CurrentApplicationAddress
 ==
@@ -261,18 +82,24 @@ txna ApplicationArgs 0
 btoi
 int 1
 ==
-bnz main_l51
+bnz main_l29
 byte "B"
-main_l41:
+main_l13:
 txna ApplicationArgs 0
 btoi
 int 1
 ==
-bnz main_l50
+bnz main_l28
 byte "B"
 app_global_get
-main_l43:
+main_l15:
+byte "Asset"
+app_global_get
+int 0
+==
+bnz main_l27
 gtxn 0 AssetAmount
+main_l17:
 +
 app_global_put
 int 0
@@ -280,222 +107,51 @@ txna ApplicationArgs 0
 btoi
 int 1
 ==
-bnz main_l49
+bnz main_l26
 byte "B"
-main_l45:
+main_l19:
 txna ApplicationArgs 0
 btoi
 int 1
 ==
-bnz main_l48
+bnz main_l25
 int 0
 byte "B"
 app_local_get
-main_l47:
+main_l21:
+byte "Asset"
+app_global_get
+int 0
+==
+bnz main_l24
 gtxn 0 AssetAmount
+main_l23:
 +
 app_local_put
 int 1
 b main_l10
-main_l48:
+main_l24:
+gtxn 0 Amount
+b main_l23
+main_l25:
 int 0
 byte "A"
 app_local_get
-b main_l47
-main_l49:
+b main_l21
+main_l26:
 byte "A"
-b main_l45
-main_l50:
+b main_l19
+main_l27:
+gtxn 0 Amount
+b main_l17
+main_l28:
 byte "A"
 app_global_get
-b main_l43
-main_l51:
+b main_l15
+main_l29:
 byte "A"
-b main_l41
-main_l52:
-global LatestTimestamp
-byte "StartTime"
-app_global_get
-int 1000
-+
-<
-bnz main_l80
-global LatestTimestamp
-byte "StartTime"
-app_global_get
-int 1000
-+
->=
-bnz main_l55
-err
-main_l55:
-byte "A"
-app_global_get
-byte "B"
-app_global_get
-<
-bnz main_l70
-byte "A"
-app_global_get
-byte "B"
-app_global_get
->
-bnz main_l60
-byte "A"
-app_global_get
-byte "B"
-app_global_get
-==
-bnz main_l59
-err
-main_l59:
-int 0
-byte "A"
-app_local_get
-int 0
-byte "B"
-app_local_get
-+
-int 1000
->
-assert
-itxn_begin
-int pay
-itxn_field TypeEnum
-txn Sender
-itxn_field Receiver
-int 0
-byte "A"
-app_local_get
-int 0
-byte "B"
-app_local_get
-+
-int 1000
--
-itxn_field Amount
-itxn_submit
-int 0
-byte "A"
-int 0
-app_local_put
-int 0
-byte "B"
-int 0
-app_local_put
-int 1
-b main_l10
-main_l60:
-int 2
-int 1
-==
-bnz main_l69
-int 0
-byte "B"
-app_local_get
-main_l62:
-int 0
->
-assert
-itxn_begin
-int pay
-itxn_field TypeEnum
-txn Sender
-itxn_field Receiver
-int 2
-int 1
-==
-bnz main_l68
-int 0
-byte "B"
-app_local_get
-main_l64:
-int 2
-*
-int 1000
--
-itxn_field Amount
-itxn_submit
-int 0
-int 2
-int 1
-==
-bnz main_l67
-byte "B"
-main_l66:
-int 0
-app_local_put
-int 1
-b main_l10
-main_l67:
-byte "A"
-b main_l66
-main_l68:
-int 0
-byte "A"
-app_local_get
-b main_l64
-main_l69:
-int 0
-byte "A"
-app_local_get
-b main_l62
-main_l70:
-int 1
-int 1
-==
-bnz main_l79
-int 0
-byte "B"
-app_local_get
-main_l72:
-int 0
->
-assert
-itxn_begin
-int pay
-itxn_field TypeEnum
-txn Sender
-itxn_field Receiver
-int 1
-int 1
-==
-bnz main_l78
-int 0
-byte "B"
-app_local_get
-main_l74:
-int 2
-*
-int 1000
--
-itxn_field Amount
-itxn_submit
-int 0
-int 1
-int 1
-==
-bnz main_l77
-byte "B"
-main_l76:
-int 0
-app_local_put
-int 1
-b main_l10
-main_l77:
-byte "A"
-b main_l76
-main_l78:
-int 0
-byte "A"
-app_local_get
-b main_l74
-main_l79:
-int 0
-byte "A"
-app_local_get
-b main_l72
-main_l80:
+b main_l13
+main_l30:
 gtxn 0 Receiver
 global CurrentApplicationAddress
 ==
@@ -504,22 +160,35 @@ gtxn 0 TypeEnum
 int pay
 ==
 assert
+global LatestTimestamp
+byte "StartTime"
+app_global_get
+int 1000
++
+<
+assert
 txna ApplicationArgs 0
 btoi
 int 1
 ==
-bnz main_l92
+bnz main_l48
 byte "B"
-main_l82:
+main_l32:
 txna ApplicationArgs 0
 btoi
 int 1
 ==
-bnz main_l91
+bnz main_l47
 byte "B"
 app_global_get
-main_l84:
-gtxn 0 Amount
+main_l34:
+byte "Asset"
+app_global_get
+int 0
+==
+bnz main_l46
+gtxn 0 AssetAmount
+main_l36:
 +
 app_global_put
 int 0
@@ -527,39 +196,51 @@ txna ApplicationArgs 0
 btoi
 int 1
 ==
-bnz main_l90
+bnz main_l45
 byte "B"
-main_l86:
+main_l38:
 txna ApplicationArgs 0
 btoi
 int 1
 ==
-bnz main_l89
+bnz main_l44
 int 0
 byte "B"
 app_local_get
-main_l88:
-gtxn 0 Amount
+main_l40:
+byte "Asset"
+app_global_get
+int 0
+==
+bnz main_l43
+gtxn 0 AssetAmount
+main_l42:
 +
 app_local_put
 int 1
 b main_l10
-main_l89:
+main_l43:
+gtxn 0 Amount
+b main_l42
+main_l44:
 int 0
 byte "A"
 app_local_get
-b main_l88
-main_l90:
+b main_l40
+main_l45:
 byte "A"
-b main_l86
-main_l91:
+b main_l38
+main_l46:
+gtxn 0 Amount
+b main_l36
+main_l47:
 byte "A"
 app_global_get
-b main_l84
-main_l92:
+b main_l34
+main_l48:
 byte "A"
-b main_l82
-main_l93:
+b main_l32
+main_l49:
 byte "Asset"
 app_global_get
 int 0
@@ -575,7 +256,7 @@ int 1000
 +
 >=
 &&
-bnz main_l95
+bnz main_l52
 global LatestTimestamp
 byte "StartTime"
 app_global_get
@@ -624,8 +305,9 @@ load 1
 itxn_field AssetAmount
 itxn_submit
 int 1
+main_l51:
 return
-main_l95:
+main_l52:
 global LatestTimestamp
 byte "StartTime"
 app_global_get
@@ -660,14 +342,354 @@ balance
 itxn_field Amount
 itxn_submit
 int 1
-return
-main_l96:
+b main_l51
+main_l53:
 int 0
 return
-main_l97:
-int 1
+main_l54:
+global LatestTimestamp
+byte "StartTime"
+app_global_get
+int 1000
++
+>=
+bnz main_l57
+int 0
+main_l56:
 return
+main_l57:
+byte "A"
+app_global_get
+byte "B"
+app_global_get
+<
+bnz main_l85
+byte "A"
+app_global_get
+byte "B"
+app_global_get
+>
+bnz main_l64
+byte "A"
+app_global_get
+byte "B"
+app_global_get
+==
+bnz main_l61
+err
+main_l61:
+byte "Asset"
+app_global_get
+int 0
+==
+bnz main_l63
+int 0
+byte "A"
+app_local_get
+int 0
+byte "B"
+app_local_get
++
+int 0
+>
+assert
+itxn_begin
+int axfer
+itxn_field TypeEnum
+byte "Asset"
+app_global_get
+itxn_field XferAsset
+txn Sender
+itxn_field AssetReceiver
+int 0
+byte "A"
+app_local_get
+int 0
+byte "B"
+app_local_get
++
+itxn_field AssetAmount
+itxn_submit
+int 0
+byte "A"
+int 0
+app_local_put
+int 0
+byte "B"
+int 0
+app_local_put
+int 1
+b main_l56
+main_l63:
+int 0
+byte "A"
+app_local_get
+int 0
+byte "B"
+app_local_get
++
+int 1000
+>
+assert
+itxn_begin
+int pay
+itxn_field TypeEnum
+txn Sender
+itxn_field Receiver
+int 0
+byte "A"
+app_local_get
+int 0
+byte "B"
+app_local_get
++
+int 1000
+-
+itxn_field Amount
+itxn_submit
+int 0
+byte "A"
+int 0
+app_local_put
+int 0
+byte "B"
+int 0
+app_local_put
+int 1
+b main_l56
+main_l64:
+byte "Asset"
+app_global_get
+int 0
+==
+bnz main_l75
+int 2
+int 1
+==
+bnz main_l74
+int 0
+byte "B"
+app_local_get
+main_l67:
+int 0
+>
+assert
+itxn_begin
+int axfer
+itxn_field TypeEnum
+byte "Asset"
+app_global_get
+itxn_field XferAsset
+txn Sender
+itxn_field AssetReceiver
+int 2
+int 1
+==
+bnz main_l73
+int 0
+byte "B"
+app_local_get
+main_l69:
+int 2
+*
+itxn_field AssetAmount
+itxn_submit
+int 0
+int 2
+int 1
+==
+bnz main_l72
+byte "B"
+main_l71:
+int 0
+app_local_put
+int 1
+b main_l56
+main_l72:
+byte "A"
+b main_l71
+main_l73:
+int 0
+byte "A"
+app_local_get
+b main_l69
+main_l74:
+int 0
+byte "A"
+app_local_get
+b main_l67
+main_l75:
+int 2
+int 1
+==
+bnz main_l84
+int 0
+byte "B"
+app_local_get
+main_l77:
+int 0
+>
+assert
+itxn_begin
+int pay
+itxn_field TypeEnum
+txn Sender
+itxn_field Receiver
+int 2
+int 1
+==
+bnz main_l83
+int 0
+byte "B"
+app_local_get
+main_l79:
+int 2
+*
+int 1000
+-
+itxn_field Amount
+itxn_submit
+int 0
+int 2
+int 1
+==
+bnz main_l82
+byte "B"
+main_l81:
+int 0
+app_local_put
+int 1
+b main_l56
+main_l82:
+byte "A"
+b main_l81
+main_l83:
+int 0
+byte "A"
+app_local_get
+b main_l79
+main_l84:
+int 0
+byte "A"
+app_local_get
+b main_l77
+main_l85:
+byte "Asset"
+app_global_get
+int 0
+==
+bnz main_l96
+int 1
+int 1
+==
+bnz main_l95
+int 0
+byte "B"
+app_local_get
+main_l88:
+int 0
+>
+assert
+itxn_begin
+int axfer
+itxn_field TypeEnum
+byte "Asset"
+app_global_get
+itxn_field XferAsset
+txn Sender
+itxn_field AssetReceiver
+int 1
+int 1
+==
+bnz main_l94
+int 0
+byte "B"
+app_local_get
+main_l90:
+int 2
+*
+itxn_field AssetAmount
+itxn_submit
+int 0
+int 1
+int 1
+==
+bnz main_l93
+byte "B"
+main_l92:
+int 0
+app_local_put
+int 1
+b main_l56
+main_l93:
+byte "A"
+b main_l92
+main_l94:
+int 0
+byte "A"
+app_local_get
+b main_l90
+main_l95:
+int 0
+byte "A"
+app_local_get
+b main_l88
+main_l96:
+int 1
+int 1
+==
+bnz main_l105
+int 0
+byte "B"
+app_local_get
 main_l98:
+int 0
+>
+assert
+itxn_begin
+int pay
+itxn_field TypeEnum
+txn Sender
+itxn_field Receiver
+int 1
+int 1
+==
+bnz main_l104
+int 0
+byte "B"
+app_local_get
+main_l100:
+int 2
+*
+int 1000
+-
+itxn_field Amount
+itxn_submit
+int 0
+int 1
+int 1
+==
+bnz main_l103
+byte "B"
+main_l102:
+int 0
+app_local_put
+int 1
+b main_l56
+main_l103:
+byte "A"
+b main_l102
+main_l104:
+int 0
+byte "A"
+app_local_get
+b main_l100
+main_l105:
+int 0
+byte "A"
+app_local_get
+b main_l98
+main_l106:
 int 0
 byte "A"
 int 0
@@ -678,7 +700,7 @@ int 0
 app_local_put
 int 1
 return
-main_l99:
+main_l107:
 byte "StartTime"
 global LatestTimestamp
 app_global_put

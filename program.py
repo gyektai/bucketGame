@@ -10,6 +10,7 @@ def approval_program():
     contract_addr = Global.current_application_address()
     asset_in_play = App.globalGet(Bytes("Asset"))
     asset_in_array = Txn.assets[0]
+    in_algo_game = asset_in_play == Int(0)
 
     my_addr = "EKWUQAIM5JFDQAUDLU5NV3TLYR3EQLMHXOZ6G5KBQSSNG63V6KEOBY7WDI" # local deployment
 
@@ -34,6 +35,10 @@ def approval_program():
     can_withdraw = current_time >= closing_time + Int(100)
     can_delete = current_time >= closing_time + Int(1000)
 
+    def getSideBytes(side): return If(side == Int(1), Bytes("A"), Bytes("B"))
+    def getGlobalWagered(side): return If(side == Int(1), a_amt, b_amt)
+    def getLocalWagered(side): return If(side == Int(1), a_wagered, b_wagered)
+
 
     # initialize global variables
     handle_creation = Seq(
@@ -51,30 +56,8 @@ def approval_program():
         Return(Int(1))
     )
 
-    # always can closeout participation
-    handle_closeout = Return(Int(1))
-
     # can't update
     handle_updateapp = Reject()
-
-    def getSideBytes(side): return If(side == Int(1), Bytes("A"), Bytes("B"))
-    def getGlobalWagered(side): return If(side == Int(1), a_amt, b_amt)
-    def getLocalWagered(side): return If(side == Int(1), a_wagered, b_wagered)
-
-    # add's the bet amount to the proper side globally and locally
-    def algo_make_bet(side):
-        return Seq(
-            App.globalPut(getSideBytes(side), getGlobalWagered(side) + algo_bet_amt),
-            App.localPut(Int(0), getSideBytes(side), getLocalWagered(side) + algo_bet_amt),
-            Int(1)
-    )
-
-    def asa_make_bet(side):
-        return Seq(
-            App.globalPut(getSideBytes(side), getGlobalWagered(side) + asa_bet_amt),
-            App.localPut(Int(0), getSideBytes(side), getLocalWagered(side) + asa_bet_amt),
-            Int(1)
-    )
 
     # payout what remains in the contract to sponsor 80% and me rest
     algo_handle_withdrawal = Seq(
@@ -93,7 +76,7 @@ def approval_program():
                 TxnField.amount: Balance(contract_addr), # might need to reload balance to not overspend
             }),
         InnerTxnBuilder.Submit(),
-        Return(Int(1))
+        Int(1)
     )
     
     contractAssetBalance = AssetHolding.balance(Txn.accounts[0], Txn.assets[0])
@@ -120,14 +103,14 @@ def approval_program():
                 TxnField.asset_amount: contractAssetValue, # might need to reload this
             }),
         InnerTxnBuilder.Submit(),
-        Return(Int(1))
+        Int(1)
     )
 
     # only can delete if everything's over
-    handle_deleteapp = If(And(asset_in_play == Int(0), can_delete),
+    handle_deleteapp = Return(If(And(asset_in_play == Int(0), can_delete),
         algo_handle_withdrawal,
         asa_handle_withdrawal
-    )
+    ))
 
     # payout the won algos, twice the amount bet on the winning side
     def algo_payout(side):
@@ -197,26 +180,36 @@ def approval_program():
         Int(1)
     )
 
+    # decide which side won and make the payout in the proper asset
+    handle_payout = Cond(
+        [a_amt < b_amt, If(in_algo_game, 
+            algo_payout(Int(1)), asa_payout(Int(1)))],
+        [a_amt > b_amt, If(in_algo_game, 
+            algo_payout(Int(2)), asa_payout(Int(2)))],
+        [a_amt == b_amt, If(in_algo_game, 
+            algo_equal_payout, asa_equal_payout)],
+    )
+
+    # payout the won amount and then opt out
+    handle_closeout = Return(If(in_payout, handle_payout, Int(0)))
+
+    # to call the proper amount vs asset_amount function
+    bet_amt = If(in_algo_game, algo_bet_amt, asa_bet_amt)
+    # add's the bet amount to the proper side globally and locally
+    def make_bet(side):
+        return Seq(
+            App.globalPut(getSideBytes(side), getGlobalWagered(side) + bet_amt),
+            App.localPut(Int(0), getSideBytes(side), getLocalWagered(side) +  bet_amt),
+            Int(1)
+    )
+
     # make sure first transaction was payment to the contract account
     # set the bet to the side in the args array
     algo_play = Seq(
         Assert(Gtxn[0].receiver() == contract_addr),
         Assert(Gtxn[0].type_enum() == TxnType.Payment),
-        algo_make_bet(bucket_chosen)
-    )
-
-    # decide which side won and make the payout 
-    handle_algo_payout = Cond(
-        [a_amt < b_amt, algo_payout(Int(1))],
-        [a_amt > b_amt, algo_payout(Int(2))],
-        [a_amt == b_amt, algo_equal_payout],
-    )
-
-    # decide which side won and make the payout 
-    handle_asa_payout = Cond(
-        [a_amt < b_amt, asa_payout(Int(1))],
-        [a_amt > b_amt, asa_payout(Int(2))],
-        [a_amt == b_amt, asa_equal_payout],
+        Assert(in_game),
+        make_bet(bucket_chosen)
     )
 
     # opt this contract into the asa in play
@@ -238,14 +231,7 @@ def approval_program():
         Assert(Gtxn[0].asset_receiver() == contract_addr),
         Assert(Gtxn[0].type_enum() == TxnType.AssetTransfer),
         Assert(Gtxn[0].xfer_asset() == asset_in_play),
-        asa_make_bet(bucket_chosen)
-    )
-    
-    # for application calls, if betting is taking place, then in game
-    # otherwise if it's too late then let people withdraw
-    algo_noop = Cond(
-        [in_game, algo_play],
-        [in_payout, handle_algo_payout],
+        make_bet(bucket_chosen)
     )
 
     # to check if the contract is already opted into the asset
@@ -254,23 +240,20 @@ def approval_program():
         asset_balance,
         asset_balance.hasValue()
     )
-
     # make sure the contract is opted into the asset for the game
     # the first call to the contract should be in a gtxn with the contract
     # first getting funded
-    # otherwise determine if it's time for bets or payouts
+    # otherwise handle the bet being placed
     asa_noop = Seq(
         Assert(asset_in_play == asset_in_array),
+        Assert(in_game),
         If(contract_opted, 
-            Cond(
-                [in_game, asa_play],
-                [in_payout, handle_asa_payout]
-            ), 
+            asa_play, 
             handle_asa_optin))
 
     # different noops for if the game's for algo or asa
     handle_noop = Return(
-        If(asset_in_play == Int(0), algo_noop, asa_noop))
+        If(asset_in_play == Int(0), algo_play, asa_noop))
     
     program = Cond(
         [Txn.application_id() == Int(0), handle_creation],
