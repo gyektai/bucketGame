@@ -85,14 +85,14 @@ def approval_program():
         InnerTxnBuilder.Begin(),
             InnerTxnBuilder.SetFields({
                 TxnField.type_enum: TxnType.Payment,
-                TxnField.receiver: creator,
+                TxnField.asset_receiver: creator,
                 TxnField.amount: (Balance(contract_addr) - MinBalance(contract_addr)) / Int(5) * Int(4),
             }),
         InnerTxnBuilder.Submit(),
         InnerTxnBuilder.Begin(),
             InnerTxnBuilder.SetFields({
                 TxnField.type_enum: TxnType.Payment,
-                TxnField.receiver: Bytes(my_addr),
+                TxnField.asset_receiver: Bytes(my_addr),
                 TxnField.amount: Balance(contract_addr) - MinBalance(contract_addr), # might need to reload balance to not overspend
             }),
         InnerTxnBuilder.Submit(),
@@ -167,7 +167,7 @@ def approval_program():
                 InnerTxnBuilder.SetFields({
                     TxnField.type_enum: TxnType.AssetTransfer,
                     TxnField.xfer_asset: asset_in_array,
-                    TxnField.receiver: sender,
+                    TxnField.asset_receiver: sender,
                     TxnField.asset_amount: getLocalWagered(side) * Int(2), # no fee for assets
                 }),
             InnerTxnBuilder.Submit(),
@@ -184,7 +184,7 @@ def approval_program():
             InnerTxnBuilder.SetFields({
                 TxnField.type_enum: TxnType.AssetTransfer,
                 TxnField.xfer_asset: asset_in_array,
-                TxnField.receiver: sender,
+                TxnField.asset_receiver: sender,
                 TxnField.asset_amount: a_wagered + b_wagered,
             }),
         InnerTxnBuilder.Submit(),
@@ -203,7 +203,7 @@ def approval_program():
     )
 
     # decide which side won and make the payout 
-    algo_payout = Cond(
+    handle_algo_payout = Cond(
         [can_withdraw, algo_handle_withdrawal],
         [a_amt < b_amt, algo_payout(Int(1))],
         [a_amt > b_amt, algo_payout(Int(2))],
@@ -211,7 +211,7 @@ def approval_program():
     )
 
     # decide which side won and make the payout 
-    asa_payout = Cond(
+    handle_asa_payout = Cond(
         [can_withdraw, asa_handle_withdrawal],
         [a_amt < b_amt, asa_payout(Int(1))],
         [a_amt > b_amt, asa_payout(Int(2))],
@@ -234,7 +234,6 @@ def approval_program():
         Assert(Gtxn[0].asset_receiver() == contract_addr),
         Assert(Gtxn[0].type_enum() == TxnType.AssetTransfer),
         Assert(Gtxn[0].xfer_asset() == asset_in_array),
-        Assert(sender != creator),
         asa_make_bet(bucket_chosen)
     )
     
@@ -242,16 +241,18 @@ def approval_program():
     # otherwise if it's too late then let people withdraw
     algo_noop = Cond(
         [in_game, algo_play],
-        [in_payout, algo_payout],
+        [in_payout, handle_algo_payout],
     )
+
 
     asa_noop = Seq(
         Assert(asset_in_play == asset_in_array),
-        Cond(
-            [And(bucket_chosen == Int(17), sender == creator), handle_asa_optin],
-            [in_game, asa_play],
-            [in_payout, asa_payout]
-        ))
+        If(App.optedIn(contract_addr, asset_in_play), 
+            Cond(
+                [in_game, asa_play],
+                [in_payout, handle_asa_payout]
+            ), 
+            handle_asa_optin))
 
     handle_noop = If(asset_in_play == Int(0), algo_noop, asa_noop)
     

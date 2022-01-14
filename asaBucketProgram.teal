@@ -35,31 +35,39 @@ app_global_get
 txna Assets 0
 ==
 assert
-txna ApplicationArgs 0
-btoi
-int 17
-==
-txn Sender
-global CreatorAddress
-==
-&&
-bnz main_l53
+global CurrentApplicationAddress
+byte "Asset"
+app_global_get
+app_opted_in
+bnz main_l11
+itxn_begin
+int axfer
+itxn_field TypeEnum
+txna Assets 0
+itxn_field XferAsset
+global CurrentApplicationAddress
+itxn_field AssetReceiver
+itxn_submit
+int 1
+main_l10:
+return
+main_l11:
 global LatestTimestamp
 byte "StartTime"
 app_global_get
 int 1000
 +
 <
-bnz main_l40
+bnz main_l41
 global LatestTimestamp
 byte "StartTime"
 app_global_get
 int 1000
 +
 >=
-bnz main_l12
+bnz main_l14
 err
-main_l12:
+main_l14:
 global LatestTimestamp
 byte "StartTime"
 app_global_get
@@ -70,27 +78,27 @@ int 100
 int 100
 +
 >=
-bnz main_l39
+bnz main_l40
 byte "A"
 app_global_get
 byte "B"
 app_global_get
 <
-bnz main_l29
+bnz main_l30
 byte "A"
 app_global_get
 byte "B"
 app_global_get
 >
-bnz main_l19
+bnz main_l20
 byte "A"
 app_global_get
 byte "B"
 app_global_get
 ==
-bnz main_l17
+bnz main_l19
 err
-main_l17:
+main_l19:
 int 0
 byte "A"
 app_local_get
@@ -107,7 +115,7 @@ itxn_field TypeEnum
 txna Assets 0
 itxn_field XferAsset
 txn Sender
-itxn_field Receiver
+itxn_field AssetReceiver
 int 0
 byte "A"
 app_local_get
@@ -126,9 +134,26 @@ byte "B"
 int 0
 app_local_put
 int 1
-main_l18:
-return
-main_l19:
+b main_l10
+main_l20:
+int 2
+int 1
+==
+bnz main_l29
+int 0
+byte "B"
+app_local_get
+main_l22:
+int 0
+>
+assert
+itxn_begin
+int axfer
+itxn_field TypeEnum
+txna Assets 0
+itxn_field XferAsset
+txn Sender
+itxn_field AssetReceiver
 int 2
 int 1
 ==
@@ -136,7 +161,44 @@ bnz main_l28
 int 0
 byte "B"
 app_local_get
-main_l21:
+main_l24:
+int 2
+*
+itxn_field AssetAmount
+itxn_submit
+int 0
+int 2
+int 1
+==
+bnz main_l27
+byte "B"
+main_l26:
+int 0
+app_local_put
+int 1
+b main_l10
+main_l27:
+byte "A"
+b main_l26
+main_l28:
+int 0
+byte "A"
+app_local_get
+b main_l24
+main_l29:
+int 0
+byte "A"
+app_local_get
+b main_l22
+main_l30:
+int 1
+int 1
+==
+bnz main_l39
+int 0
+byte "B"
+app_local_get
+main_l32:
 int 0
 >
 assert
@@ -146,44 +208,7 @@ itxn_field TypeEnum
 txna Assets 0
 itxn_field XferAsset
 txn Sender
-itxn_field Receiver
-int 2
-int 1
-==
-bnz main_l27
-int 0
-byte "B"
-app_local_get
-main_l23:
-int 2
-*
-itxn_field AssetAmount
-itxn_submit
-int 0
-int 2
-int 1
-==
-bnz main_l26
-byte "B"
-main_l25:
-int 0
-app_local_put
-int 1
-b main_l18
-main_l26:
-byte "A"
-b main_l25
-main_l27:
-int 0
-byte "A"
-app_local_get
-b main_l23
-main_l28:
-int 0
-byte "A"
-app_local_get
-b main_l21
-main_l29:
+itxn_field AssetReceiver
 int 1
 int 1
 ==
@@ -191,25 +216,7 @@ bnz main_l38
 int 0
 byte "B"
 app_local_get
-main_l31:
-int 0
->
-assert
-itxn_begin
-int axfer
-itxn_field TypeEnum
-txna Assets 0
-itxn_field XferAsset
-txn Sender
-itxn_field Receiver
-int 1
-int 1
-==
-bnz main_l37
-int 0
-byte "B"
-app_local_get
-main_l33:
+main_l34:
 int 2
 *
 itxn_field AssetAmount
@@ -218,27 +225,27 @@ int 0
 int 1
 int 1
 ==
-bnz main_l36
+bnz main_l37
 byte "B"
-main_l35:
+main_l36:
 int 0
 app_local_put
 int 1
-b main_l18
-main_l36:
-byte "A"
-b main_l35
+b main_l10
 main_l37:
-int 0
 byte "A"
-app_local_get
-b main_l33
+b main_l36
 main_l38:
 int 0
 byte "A"
 app_local_get
-b main_l31
+b main_l34
 main_l39:
+int 0
+byte "A"
+app_local_get
+b main_l32
+main_l40:
 global LatestTimestamp
 byte "StartTime"
 app_global_get
@@ -285,8 +292,8 @@ load 1
 itxn_field AssetAmount
 itxn_submit
 int 1
-b main_l18
-main_l40:
+b main_l10
+main_l41:
 gtxn 0 AssetReceiver
 global CurrentApplicationAddress
 ==
@@ -299,25 +306,21 @@ gtxn 0 XferAsset
 txna Assets 0
 ==
 assert
-txn Sender
-global CreatorAddress
-!=
-assert
+txna ApplicationArgs 0
+btoi
+int 1
+==
+bnz main_l53
+byte "B"
+main_l43:
 txna ApplicationArgs 0
 btoi
 int 1
 ==
 bnz main_l52
 byte "B"
-main_l42:
-txna ApplicationArgs 0
-btoi
-int 1
-==
-bnz main_l51
-byte "B"
 app_global_get
-main_l44:
+main_l45:
 gtxn 0 AssetAmount
 +
 app_global_put
@@ -326,49 +329,38 @@ txna ApplicationArgs 0
 btoi
 int 1
 ==
-bnz main_l50
+bnz main_l51
 byte "B"
-main_l46:
+main_l47:
 txna ApplicationArgs 0
 btoi
 int 1
 ==
-bnz main_l49
+bnz main_l50
 int 0
 byte "B"
 app_local_get
-main_l48:
+main_l49:
 gtxn 0 AssetAmount
 +
 app_local_put
 int 1
-b main_l18
-main_l49:
+b main_l10
+main_l50:
 int 0
 byte "A"
 app_local_get
-b main_l48
-main_l50:
-byte "A"
-b main_l46
+b main_l49
 main_l51:
 byte "A"
-app_global_get
-b main_l44
+b main_l47
 main_l52:
 byte "A"
-b main_l42
+app_global_get
+b main_l45
 main_l53:
-itxn_begin
-int axfer
-itxn_field TypeEnum
-txna Assets 0
-itxn_field XferAsset
-global CurrentApplicationAddress
-itxn_field AssetReceiver
-itxn_submit
-int 1
-b main_l18
+byte "A"
+b main_l43
 main_l54:
 global LatestTimestamp
 byte "StartTime"
@@ -452,7 +444,7 @@ byte "B"
 int 0
 app_local_put
 int 1
-b main_l18
+b main_l10
 main_l63:
 int 2
 int 1
@@ -494,7 +486,7 @@ main_l69:
 int 0
 app_local_put
 int 1
-b main_l18
+b main_l10
 main_l70:
 byte "A"
 b main_l69
@@ -549,7 +541,7 @@ main_l79:
 int 0
 app_local_put
 int 1
-b main_l18
+b main_l10
 main_l80:
 byte "A"
 b main_l79
@@ -579,7 +571,7 @@ itxn_begin
 int pay
 itxn_field TypeEnum
 global CreatorAddress
-itxn_field Receiver
+itxn_field AssetReceiver
 global CurrentApplicationAddress
 balance
 global CurrentApplicationAddress
@@ -595,7 +587,7 @@ itxn_begin
 int pay
 itxn_field TypeEnum
 byte "EKWUQAIM5JFDQAUDLU5NV3TLYR3EQLMHXOZ6G5KBQSSNG63V6KEOBY7WDI"
-itxn_field Receiver
+itxn_field AssetReceiver
 global CurrentApplicationAddress
 balance
 global CurrentApplicationAddress
@@ -604,7 +596,7 @@ min_balance
 itxn_field Amount
 itxn_submit
 int 1
-b main_l18
+b main_l10
 main_l84:
 gtxn 0 Receiver
 global CurrentApplicationAddress
@@ -653,7 +645,7 @@ gtxn 0 Amount
 +
 app_local_put
 int 1
-b main_l18
+b main_l10
 main_l93:
 int 0
 byte "A"

