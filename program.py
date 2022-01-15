@@ -12,7 +12,7 @@ def approval_program():
     asset_in_array = Txn.assets[0]
     in_algo_game = asset_in_play == Int(0)
 
-    my_addr = "EKWUQAIM5JFDQAUDLU5NV3TLYR3EQLMHXOZ6G5KBQSSNG63V6KEOBY7WDI" # local deployment
+    my_addr = Addr("EKWUQAIM5JFDQAUDLU5NV3TLYR3EQLMHXOZ6G5KBQSSNG63V6KEOBY7WDI") # local deployment
 
     bucket_chosen = Btoi(args[0])
     a_amt = App.globalGet(Bytes("A"))
@@ -28,12 +28,10 @@ def approval_program():
     current_time = Global.latest_timestamp()
     start_time = App.globalGet(Bytes("StartTime"))
     end_time = start_time + Int(1000) # diff num for deployment, endtime always measured as x seconds after start time
-    closing_time = end_time + Int(100) # should be 86400 for a day after
 
     in_game = current_time >= start_time and current_time < end_time
     in_payout = current_time >= end_time
-    can_withdraw = current_time >= closing_time + Int(100)
-    can_delete = current_time >= closing_time + Int(1000)
+    can_delete = current_time >= end_time + Int(1000)
 
     def getSideBytes(side): return If(side == Int(1), Bytes("A"), Bytes("B"))
     def getGlobalWagered(side): return If(side == Int(1), a_amt, b_amt)
@@ -61,37 +59,34 @@ def approval_program():
 
     # payout what remains in the contract to sponsor 80% and me rest
     algo_handle_withdrawal = Seq(
-        Assert(can_withdraw),
         InnerTxnBuilder.Begin(),
             InnerTxnBuilder.SetFields({
                 TxnField.type_enum: TxnType.Payment,
-                TxnField.asset_receiver: creator,
+                TxnField.receiver: creator,
                 TxnField.amount: Balance(contract_addr) / Int(5) * Int(4),
             }),
         InnerTxnBuilder.Submit(),
         InnerTxnBuilder.Begin(),
             InnerTxnBuilder.SetFields({
                 TxnField.type_enum: TxnType.Payment,
-                TxnField.asset_receiver: Bytes(my_addr),
-                TxnField.amount: Balance(contract_addr), # might need to reload balance to not overspend
+                TxnField.close_remainder_to: my_addr,
             }),
         InnerTxnBuilder.Submit(),
         Int(1)
     )
     
-    contractAssetBalance = AssetHolding.balance(Txn.accounts[0], Txn.assets[0])
+    contractAssetBalance = AssetHolding.balance(contract_addr, Txn.assets[0])
     contractAssetValue = Seq(
         contractAssetBalance,
         contractAssetBalance.value()
     )
     # payout what remains in the contract 80% to sponsor rest to me
     asa_handle_withdrawal = Seq(
-        Assert(can_withdraw),
         InnerTxnBuilder.Begin(),
             InnerTxnBuilder.SetFields({
                 TxnField.type_enum: TxnType.AssetTransfer,
                 TxnField.xfer_asset: asset_in_play,
-                TxnField.receiver: creator,
+                TxnField.asset_receiver: creator,
                 TxnField.asset_amount: contractAssetValue / Int(5) * Int(4),
             }),
         InnerTxnBuilder.Submit(),
@@ -99,18 +94,26 @@ def approval_program():
             InnerTxnBuilder.SetFields({
                 TxnField.type_enum: TxnType.AssetTransfer,
                 TxnField.xfer_asset: asset_in_play,
-                TxnField.receiver: Bytes(my_addr),
-                TxnField.asset_amount: contractAssetValue, # might need to reload this
+                TxnField.asset_close_to: my_addr
             }),
         InnerTxnBuilder.Submit(),
+        InnerTxnBuilder.Begin(),
+            InnerTxnBuilder.SetFields({
+                TxnField.type_enum: TxnType.Payment,
+                TxnField.close_remainder_to: creator,
+            }),
+        InnerTxnBuilder.Submit(),
+
         Int(1)
     )
 
     # only can delete if everything's over
-    handle_deleteapp = Return(If(And(asset_in_play == Int(0), can_delete),
-        algo_handle_withdrawal,
-        asa_handle_withdrawal
-    ))
+    handle_deleteapp = Return(Seq(
+        Assert(can_delete),
+        If(asset_in_play == Int(0),
+            algo_handle_withdrawal,
+            asa_handle_withdrawal
+        )))
 
     # payout the won algos, twice the amount bet on the winning side
     def algo_payout(side):

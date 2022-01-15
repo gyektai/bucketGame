@@ -27,7 +27,8 @@ class AlgoRunner:
             url = "http://localhost:4001"
             self.client = algod.AlgodClient(token, url)
         else:
-            raise ValueError            
+            raise ValueError   
+
     # create a contract from the bucketGameProgram and send it
     def create(self, acctNum):
         creator_addr, creator_pk = get_accounts()[acctNum]
@@ -115,9 +116,9 @@ class AlgoRunner:
         tx_id = self.client.send_transactions(signed_group)
 
         #print("Account 1 \n", client.account_info(my_nft_addr)["amount"])
-        wait_for_confirmation(self.client, tx_id)
+        #wait_for_confirmation(self.client, tx_id)
         #print("Account 1 \n", client.account_info(my_nft_addr)["amount"]) 
-        print("Bet placed on {}".format(side))
+        print("Bet placed on {} by {}".format(side, acct))
         #info = client.application_info(appID)
         #print(info)
 
@@ -135,17 +136,19 @@ class AlgoRunner:
 
     def claim(self, appID, acctNum):
         caller, pk = get_accounts()[acctNum]
-        print("before claim {}".format(self.client.account_info(caller)["amount"]))
-        claim_call = ApplicationCallTxn(
+        before_balance = self.client.account_info(caller)["amount"]
+        #print("before claim {}".format(before_balance))
+        claim_call = ApplicationCloseOutTxn(
             sender=caller,
             index=appID,
-            on_complete=future.transaction.OnComplete.NoOpOC,
             sp=self.client.suggested_params(),
         )
         stxn = claim_call.sign(pk)
         tx_id = self.client.send_transaction(stxn)
         waitForTransaction(self.client, tx_id)
-        print("after claim  {}".format(self.client.account_info(caller)["amount"]))
+        after_balance = self.client.account_info(caller)["amount"]
+        #print("after claim  {}".format(after_balance))
+        print("{} difference for {}".format(after_balance - before_balance, acctNum))
 
 
     def closeout(self, appID, acctNum):
@@ -153,15 +156,20 @@ class AlgoRunner:
 
     def delete(self, appID, acctNum):
         caller, pk = get_accounts()[acctNum]
+        bsb = self.client.account_info(caller)["amount"]
+        bob = self.client.account_info(get_accounts()[0][0])["amount"]
         delete_txn = ApplicationDeleteTxn(
             sender=caller,
             index=appID,
             sp=self.client.suggested_params(),
+            accounts=["EKWUQAIM5JFDQAUDLU5NV3TLYR3EQLMHXOZ6G5KBQSSNG63V6KEOBY7WDI"] # because my_acct is hardcoded
         )
         stxn = delete_txn.sign(pk)
         tx_id = self.client.send_transaction(stxn)
         waitForTransaction(self.client, tx_id)
-        print("Deleted {}".format(appID))
+        asb = self.client.account_info(caller)["amount"]
+        aob = self.client.account_info(get_accounts()[0][0])["amount"]
+        print("Ending \n {} paid to sponsor {} \n {} paid to owner {}".format(asb - bsb, acctNum, aob - bob, 0))
 
 class AsaRunner:
     def __init__(self, net, asset):
@@ -295,35 +303,38 @@ class AsaRunner:
 
     def claim(self, appID, acctNum):
         caller, pk = get_accounts()[acctNum]
-        print("before claim {}".format(self.client.account_info(caller)))
-        claim_call = ApplicationCallTxn(
+        before_balance = self.client.account_info(caller)['assets'][0]['amount']
+        claim_call = ApplicationCloseOutTxn(
             sender=caller,
             index=appID,
             foreign_assets=[self.assetID],
-            on_complete=future.transaction.OnComplete.NoOpOC,
             sp=self.client.suggested_params(),
-            app_args=[0]
         )
         stxn = claim_call.sign(pk)
         tx_id = self.client.send_transaction(stxn)
         waitForTransaction(self.client, tx_id)
-        print("after claim {}".format(self.client.account_info(caller)))
+        after_balance = self.client.account_info(caller)['assets'][0]['amount']
+        print("difference {} for {}".format(after_balance - before_balance, acctNum))
 
-
-    def closeout(self, appID, acctNum):
-        pass
 
     def delete(self, appID, acctNum):
         caller, pk = get_accounts()[acctNum]
+        bsb = self.client.account_info(caller)['assets'][0]['amount']
+        bob = self.client.account_info(get_accounts()[0][0])['assets'][0]['amount']
         delete_txn = ApplicationDeleteTxn(
             sender=caller,
             index=appID,
             sp=self.client.suggested_params(),
+            accounts=["EKWUQAIM5JFDQAUDLU5NV3TLYR3EQLMHXOZ6G5KBQSSNG63V6KEOBY7WDI"],
+            foreign_assets=[self.assetID]
         )
         stxn = delete_txn.sign(pk)
         tx_id = self.client.send_transaction(stxn)
         waitForTransaction(self.client, tx_id)
-        print("Deleted {}".format(appID))
+        asb = self.client.account_info(caller)['assets'][0]['amount']
+        aob = self.client.account_info(get_accounts()[0][0])['assets'][0]['amount']
+        print("Ending assets \n {} paid to sponsor {} \n {} paid to owner {}".format(asb - bsb, acctNum, aob - bob, 0))
+
 
     def create_asa(self, acctNum):
         caller, pk = get_accounts()[acctNum]
@@ -419,45 +430,4 @@ class AsaRunner:
         tx_id = self.client.send_transaction(stxn)
         waitForTransaction(self.client, tx_id)
         print("deleted {}".format(appID))
-
-    def exploit(self):
-        sender, pk = "my_addr"
-        txn1 = PaymentTxn(
-            sender=sender,
-            sp=self.client.suggested_params(),
-            receiver="pool",
-            amt=3000,
-            note='fee'
-        )
-        txn2 = ApplicationCallTxn(
-            sender="pool",
-            sp=self.client.suggested_params(),
-            index=validator_app_id,
-            app_args=['burn'],
-            accounts=[sender],
-            foreign_assets=[asset1, asset1, liquidity_asset_id],
-
-        )
-        txn3 = AssetTransferTxn(
-            sender="pool",
-            sp=self.client.suggested_params(),
-            receiver=sender,
-            amt=asset1_amount,
-            index=asset1_id,
-        )
-        txn4 = AssetTransferTxn(
-            sender="pool",
-            sp=self.client.suggested_params(),
-            receiver=sender,
-            amt=asset2_amount,
-            index=asset2_id,
-        )
-        txn5 = AssetTransferTxn(
-            sender=sender,
-            sp=self.client.suggested_params(),
-            receiver="pool",
-            amt=liquidity_asset_amt,
-            index=liquidity_asset_id
-        )
-        group = [txn1, txn2, txn3, txn4, txn5]
         

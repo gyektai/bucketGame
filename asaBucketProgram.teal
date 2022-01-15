@@ -241,33 +241,20 @@ main_l48:
 byte "A"
 b main_l32
 main_l49:
+global LatestTimestamp
+byte "StartTime"
+app_global_get
+int 1000
++
+int 1000
++
+>=
+assert
 byte "Asset"
 app_global_get
 int 0
 ==
-global LatestTimestamp
-byte "StartTime"
-app_global_get
-int 1000
-+
-int 100
-+
-int 1000
-+
->=
-&&
 bnz main_l52
-global LatestTimestamp
-byte "StartTime"
-app_global_get
-int 1000
-+
-int 100
-+
-int 100
-+
->=
-assert
 itxn_begin
 int axfer
 itxn_field TypeEnum
@@ -275,8 +262,8 @@ byte "Asset"
 app_global_get
 itxn_field XferAsset
 global CreatorAddress
-itxn_field Receiver
-txna Accounts 0
+itxn_field AssetReceiver
+global CurrentApplicationAddress
 txna Assets 0
 asset_holding_get AssetBalance
 store 0
@@ -294,36 +281,24 @@ itxn_field TypeEnum
 byte "Asset"
 app_global_get
 itxn_field XferAsset
-byte "EKWUQAIM5JFDQAUDLU5NV3TLYR3EQLMHXOZ6G5KBQSSNG63V6KEOBY7WDI"
-itxn_field Receiver
-txna Accounts 0
-txna Assets 0
-asset_holding_get AssetBalance
-store 0
-store 1
-load 1
-itxn_field AssetAmount
+addr EKWUQAIM5JFDQAUDLU5NV3TLYR3EQLMHXOZ6G5KBQSSNG63V6KEOBY7WDI
+itxn_field AssetCloseTo
+itxn_submit
+itxn_begin
+int pay
+itxn_field TypeEnum
+global CreatorAddress
+itxn_field CloseRemainderTo
 itxn_submit
 int 1
 main_l51:
 return
 main_l52:
-global LatestTimestamp
-byte "StartTime"
-app_global_get
-int 1000
-+
-int 100
-+
-int 100
-+
->=
-assert
 itxn_begin
 int pay
 itxn_field TypeEnum
 global CreatorAddress
-itxn_field AssetReceiver
+itxn_field Receiver
 global CurrentApplicationAddress
 balance
 int 5
@@ -335,11 +310,8 @@ itxn_submit
 itxn_begin
 int pay
 itxn_field TypeEnum
-byte "EKWUQAIM5JFDQAUDLU5NV3TLYR3EQLMHXOZ6G5KBQSSNG63V6KEOBY7WDI"
-itxn_field AssetReceiver
-global CurrentApplicationAddress
-balance
-itxn_field Amount
+addr EKWUQAIM5JFDQAUDLU5NV3TLYR3EQLMHXOZ6G5KBQSSNG63V6KEOBY7WDI
+itxn_field CloseRemainderTo
 itxn_submit
 int 1
 b main_l51
